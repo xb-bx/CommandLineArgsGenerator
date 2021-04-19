@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageScribanIncludeSource>true</PackageScribanIncludeSource>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Parser.template" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Parser.template" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference PrivateAssets="all" Include="Microsoft.CSharp" Version="4.5.0" />
+    <PackageReference PrivateAssets="all" Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
+    <PackageReference PrivateAssets="all" Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Scriban" Version="3.6.0" IncludeAssets="Build" /> 
+  </ItemGroup>
+</Project>
