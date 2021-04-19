@@ -4,6 +4,16 @@
     <LangVersion>latest</LangVersion>
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackageScribanIncludeSource>true</PackageScribanIncludeSource>
+	<Authors>Dotnet-And-Happiness</Authors>
+    <DevelopmentDependency>True</DevelopmentDependency>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+	<IncludeBuildOutput>false</IncludeBuildOutput>
+    <PackageTags>source generator</PackageTags>
+	<GeneratePackageOnBuild>true</GeneratePackageOnBuild> 
+	<Description>Source generator to generate command line args parser</Description>
+    <PackageProjectUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</RepositoryUrl>
+	<Version>0.1.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,4 +35,7 @@
   <ItemGroup>
     <PackageReference Include="Scriban" Version="3.6.0" IncludeAssets="Build" /> 
   </ItemGroup>
+	<ItemGroup>
+		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+	</ItemGroup>
 </Project>
