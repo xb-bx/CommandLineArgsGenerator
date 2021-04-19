@@ -63,10 +63,7 @@ namespace CommandLineArgsGenerator
                         Commands = commandInfos, 
                         Converters = receiver.Converters 
                     }, x => true , x => x.Name);
-                ctx.MemberRenamer = x => x.Name;
-                
-                System.IO.File.WriteAllText("D:\\ep.cs", 
-                    template.Render(ctx));  
+                ctx.MemberRenamer = x => x.Name; 
                 context.AddSource("EntryPoint.cs", template.Render(ctx));
  
             }
