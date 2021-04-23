@@ -67,6 +67,7 @@ namespace {{ Namespace }}
 			Console.ForegroundColor = ConsoleColor.Red;
 			Console.WriteLine(error);
 			Console.ResetColor();
+			Environment.Exit(0);
 		}
 		public static void Main(string[] args)
 		{  
