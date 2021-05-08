@@ -316,6 +316,10 @@ namespace @(Model.Namespace)
         writer.WriteLine($"{GetNameWithoutNamespace(cmd.NameInSourceCode)}({string.Join(",", cmd.Parameters.Select(x => x.RawName).Concat(cmd.Options.Select(x => x.RawName)))});");
         writer.Level--;
         writer.WriteLine("}");
+        writer.WriteLine("else");
+        writer.Level++;
+        writer.WriteLine("Error(\"Not all parameters are specified\");");
+        writer.Level--;
         writer.WriteLine("break;");
         writer.Level--;
         writer.WriteLine("}");
