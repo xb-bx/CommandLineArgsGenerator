@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+
 namespace CommandLineArgsGenerator
 {
     public class ParameterInfo
@@ -37,5 +38,4 @@ namespace CommandLineArgsGenerator
         }
 		
     }
-
 } 

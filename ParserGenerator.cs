@@ -1,14 +1,14 @@
 ﻿using System;
+using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Scriban;
-using Scriban.Runtime;
 using System.Xml.Linq;
 using Microsoft.CodeAnalysis.CSharp;
+using System.Diagnostics;
 
 namespace CommandLineArgsGenerator
 {
@@ -16,58 +16,86 @@ namespace CommandLineArgsGenerator
     public class ParserGenerator : ISourceGenerator
     {
         private static SymbolDisplayFormat typeFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
-        private static readonly Template template;
-        static ParserGenerator()
-        {
-            var asm = Assembly.GetExecutingAssembly();
-            using var stream = asm.GetManifestResourceStream(asm.GetManifestResourceNames().FirstOrDefault(x => x.EndsWith(".template")));
-            using var reader = new System.IO.StreamReader(stream);
-            template = Template.Parse(reader.ReadToEnd());
-        }
-
         public void Execute(GeneratorExecutionContext context)
-        {
-            var receiver = context.SyntaxContextReceiver as ParserSyntaxReceiver;
-            if (receiver?.Class != null)
+        { 
+            var receiver = context.SyntaxContextReceiver as ParserSyntaxReceiver; 
+            if (receiver?.Root?.Class != null && receiver.Namespace != null)
             {
-                var methods = GetMethods(receiver.Class);
-                List<CommandInfo> commandInfos = new List<CommandInfo>();
-                foreach (var method in methods)
-                {
-                    var documentation = GetXmlDocumentation(method);
-                    (ParameterInfo[] parameters, OptionInfo[] options) = GetParamsAndOptions(method, documentation, context.Compilation.GetSemanticModel(receiver.Class.SyntaxTree));
-
-                    var fullname = $"{ParserSyntaxReceiver.GetFullName(receiver.Class)}.{method.Identifier}";
-                    commandInfos.Add(new CommandInfo()
+                var semanticModel = context.Compilation.GetSemanticModel(receiver.Root.Class.SyntaxTree);
+                var cmds = GetCommands(receiver.Root.Class, semanticModel, out ICommandInfo defaultCommand);
+                receiver.Root.Children = cmds;
+                receiver.Root.Default = defaultCommand;
+                var t = new
                     {
-                        FullName = fullname,
-                        HelpText = documentation.Descendants(XName.Get("summary")).FirstOrDefault()?.Value.Trim() ?? string.Empty,
-                        Name = TransformName(method.Identifier.ToString()),
-                        Parameters = parameters,
-                        Options = options
-                    }); ;
-                } 
+                        Namespace = receiver.Namespace.Trim(),
+                        Root = receiver.Root,
+                        Converters = receiver.Converters.GroupBy(x => x.Value).ToDictionary(t => t.Key, t => t.Select(r => r.Key).ToList())
+                    }; 
+                context.AddSource("EntryPoint.cs",  Template.RenderAsync(t).Result);
 
-                var sc = new ScriptObject();  
-                
-                sc.Import("HasMethod", (Func<ParameterInfo, string, int, bool>)((param,name,args) => param.HasMethod(name, args)));
-                sc.Import("HasCtor", (Func<ParameterInfo, IEnumerable<object>, bool>)((param, args) => param.HasCtor(args.Cast<string>().ToArray())));
-                sc.Import("GroupByVal", (Func<Dictionary<string,string>, Dictionary<string,List<string>>>)(d => d.GroupBy(x => x.Value).ToDictionary(t => t.Key, t => t.Select(r => r.Key).ToList())));
-                 
-                var ctx = new TemplateContext();
-                ctx.PushGlobal(sc);
-                sc.Import(
-                    new 
-                    { 
-                        Namespace = (receiver.Class.Parent as NamespaceDeclarationSyntax).Name.ToString(), 
-                        Commands = commandInfos, 
-                        Converters = receiver.Converters 
-                    }, x => true , x => x.Name);
-                ctx.MemberRenamer = x => x.Name; 
-                context.AddSource("EntryPoint.cs", template.Render(ctx));
- 
             }
+
         }
+
+        private List<ICommandInfo> GetCommands(ClassDeclarationSyntax @class, SemanticModel semanticModel, out ICommandInfo defaultCommand, string prevName = null)
+        {
+            defaultCommand = null;
+            var cmds = new List<ICommandInfo>();
+            var methods = GetMethods(@class);
+            foreach (var method in methods)
+            {
+                var doc = GetXmlDocumentation(method);
+                var rawName = method.Identifier.ToString().Trim();
+                var paramAndOpts = GetParamsAndOptions(method, doc, semanticModel);
+                var name = TransformName(rawName); 
+                var cmd = new CommandInfo
+                    {
+                        Name = name,
+                        RawName = rawName,
+                        NameInSourceCode = ParserSyntaxReceiver.GetFullName(method),
+                        FullName = prevName is not null ? $"{prevName} {name}" : name,
+                        Parameters = paramAndOpts.parameters,
+                        Options = paramAndOpts.options,
+                        HelpText = doc.Descendants("summary").FirstOrDefault()?.Value.Trim(),
+                    };
+                if(method.AttributeLists.Any(x => x.Attributes.Any(attr => attr.Name.ToString() is "Default")))
+                {
+                    defaultCommand = cmd;
+                }
+                else
+                {
+                    cmds.Add(cmd);    
+                }
+                
+            }
+            var classes = GetClasses(@class);
+            foreach (var cl in classes)
+            {
+                var doc = GetXmlDocumentation(cl);
+                var rawName = cl.Identifier.ToString().Trim();
+                var name = TransformName(rawName);
+                var cmd = new RootCommand
+                {
+                    Name = name,
+                    FullName = $"{prevName} {name}",
+                    HelpText = doc.Descendants("summary").FirstOrDefault()?.Value.Trim(),
+                    Children = GetCommands(cl, semanticModel, out ICommandInfo defCmd, name),
+                    Class = cl,
+                    RawName = rawName,
+                    Default = defCmd
+                };
+                if(cl.AttributeLists.Any(x => x.Attributes.Any(attr => attr.Name.ToString() is "Default")))
+                {
+                    defaultCommand = cmd;
+                }
+                else
+                {
+                    cmds.Add(cmd);
+                }
+            }
+            return cmds;
+        }
+
 
         private IEnumerable<MethodDeclarationSyntax> GetMethods(ClassDeclarationSyntax @class)
         {
@@ -82,6 +110,13 @@ namespace CommandLineArgsGenerator
                         && m.Modifiers.Any(SyntaxKind.StaticKeyword))
 
                 ;
+        }
+        private IEnumerable<ClassDeclarationSyntax> GetClasses(ClassDeclarationSyntax @class) 
+        {
+            return @class.Members
+                .Where(x => x is ClassDeclarationSyntax && x.Modifiers.Any(SyntaxKind.PublicKeyword))
+                .Cast<ClassDeclarationSyntax>();
+                
         }
 
 
@@ -114,7 +149,7 @@ namespace CommandLineArgsGenerator
                 .FirstOrDefault(p => p.Attribute("name")?.Value == name);
 
             string help = p
-                ?.Value ?? "";
+                ?.Value.Trim() ?? "";
 
             var type = (typeInfo.Type);
             string displayTypeName = typeInfo.Type.ToDisplayString(typeFormat);
@@ -138,7 +173,7 @@ namespace CommandLineArgsGenerator
                     Name = TransformName(name),
                     Type = t,
                     HelpText = help,
-                    DisplayTypeName = t.ToDisplayString(typeFormat),
+                    DisplayTypeName = type.ToDisplayString(typeFormat),
                     IsArray = true,
                     Default = param.Default?.ToString().TrimStart('=') ?? "null"
                 };
@@ -183,7 +218,7 @@ namespace CommandLineArgsGenerator
                     sb.Append('-');
                     sb.Append(char.ToLower(item));
                 }
-                else
+                else if(item is not '@')
                 {
                     sb.Append(item);
                 }
@@ -192,8 +227,12 @@ namespace CommandLineArgsGenerator
         }
 
         public void Initialize(GeneratorInitializationContext context)
-        { 
-            context.RegisterForSyntaxNotifications(() => new ParserSyntaxReceiver());
+        {
+            if (!Debugger.IsAttached) 
+            {
+               // Debugger.Launch();
+            }
+            context.RegisterForSyntaxNotifications(() => new ParserSyntaxReceiver()); 
         }
     }
 }
