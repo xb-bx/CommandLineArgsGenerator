@@ -50,6 +50,8 @@ public class PointConverter : IArgumentConverter<Point>
   }
 }
 ```
+### Native AOT
+Because of absence of reflection you can compile your app using [NativeAOT](https://github.com/dotnet/runtimelab/tree/feature/NativeAOT/) to make it more faster
 ### Arrays
 **Arrays always will be as optionals**
 ## Install
