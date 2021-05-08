@@ -7,12 +7,17 @@
         <NoWarn>$(NoWarn);NU5128</NoWarn>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <PackageTags>source generator</PackageTags>
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Description>Source generator to generate command line args parser</Description>
         <PackageProjectUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</PackageProjectUrl>
         <RepositoryUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</RepositoryUrl>
         <Version>0.1.2</Version>
     </PropertyGroup>
+    
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    </PropertyGroup>
+
+    
     <ItemGroup>
         <AdditionalFiles Include="Template.cshtml" IsRazorTemplate="true"/>
     </ItemGroup>
