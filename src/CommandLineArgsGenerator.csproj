@@ -9,8 +9,8 @@
         <PackageTags>source generator</PackageTags>
         <Description>Source generator to generate command line args parser</Description>
         <PackageProjectUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</RepositoryUrl>
-        <Version>0.2.1</Version>
+        <RepositoryUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</RepositoryUrl> 
+        <Version>0.2.2</Version>
     </PropertyGroup>
     
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -31,18 +31,20 @@
         </PackageReference>
     </ItemGroup>
     <ItemGroup>
-        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
-    </ItemGroup>
-    <ItemGroup>
         <PackageReference Include="MiniRazor.CodeGen" Version="2.1.2"/>
         <PackageReference Include="MiniRazor.Runtime" GeneratePathProperty="true" PrivateAssets="all" Version="2.1.2"/>
     </ItemGroup>
+    <ItemGroup>
+        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+        <None Pack="true" Include="$(PKGMiniRazor_Runtime)\lib\netstandard2.0\MiniRazor.Runtime.dll" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+
     <PropertyGroup>
         <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
     </PropertyGroup>
     <Target Name="GetDependencyTargetPaths"> 
         <ItemGroup>
-            <TargetPathWithTargetPlatformMoniker Include="$(PKGMiniRazor_Runtime)\lib\netstandard2.0\MiniRazor.Runtime.dll" IncludeRuntimeDependency="false"/>
+            <TargetPathWithTargetPlatformMoniker Pack="true" Include="$(PKGMiniRazor_Runtime)\lib\netstandard2.0\MiniRazor.Runtime.dll" IncludeRuntimeDependency="false"/>
         </ItemGroup>
     </Target>
 </Project>
