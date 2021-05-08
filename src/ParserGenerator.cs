@@ -30,7 +30,7 @@ namespace CommandLineArgsGenerator
                         Namespace = receiver.Namespace.Trim(),
                         Root = receiver.Root,
                         Converters = receiver.Converters.GroupBy(x => x.Value).ToDictionary(t => t.Key, t => t.Select(r => r.Key).ToList())
-                    }; 
+                    };  
                 context.AddSource("EntryPoint.cs",  Template.RenderAsync(t).Result);
 
             }
@@ -77,7 +77,7 @@ namespace CommandLineArgsGenerator
                 var cmd = new RootCommand
                 {
                     Name = name,
-                    FullName = $"{prevName} {name}",
+                    FullName = prevName is not null ? $"{prevName} {name}" : name,
                     HelpText = doc.Descendants("summary").FirstOrDefault()?.Value.Trim(),
                     Children = GetCommands(cl, semanticModel, out ICommandInfo defCmd, name),
                     Class = cl,

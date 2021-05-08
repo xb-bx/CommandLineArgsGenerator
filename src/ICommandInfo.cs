@@ -4,6 +4,7 @@
 	{
         public string Name { get; }
         public string HelpText { get; } 
-        public string RawName { get; set; }
+        public string RawName { get; }
+        public string FullName { get; }
 	}
 } 

@@ -107,15 +107,16 @@ namespace @(Model.Namespace)
     }
     private void GetCaseHelp(ICommandInfo info, IntentedWriter writer)
     {
-        if(info is CommandInfo scmd)
+        if(!string.IsNullOrWhiteSpace(info.FullName))
         {
-            writer.WriteLine($"case \"{scmd.FullName}\":");
+            writer.WriteLine($"case \"{info.FullName}\":");
             writer.Level++;
-            writer.WriteLine($"return \"{GetHelp(scmd)}\";");
+            writer.WriteLine($"return \"{GetHelp(info)}\";");
             writer.Level--;
         }
-        else if(info is RootCommand root)
+        if(info is RootCommand root)
         {
+            
             foreach(var cmd in root.Children)
             {
                 GetCaseHelp(cmd, writer);
