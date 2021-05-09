@@ -1,0 +1,223 @@
+﻿{{~
+	func length 
+		ret array.size $0
+	end
+	func converters(converter, targets) 
+		$res = ""
+		$convName = (string.replace converter "." "_")
+		$res = $res + "var " + $convName  + " = new " + (converter | string.remove (Namespace + ".") ) + "();"
+		for target in targets 
+			$res = $res + "IArgumentConverter<" + (target| string.remove (Namespace + ".") )+ "> " + (string.replace target "." "_") + " = " + $convName + ";" 
+		end
+		
+		ret $res
+	end
+	func convertion(parameter, expr)
+		$res = ""  
+		if Converters[parameter.DisplayTypeName]
+			$res = $res + (string.replace parameter.DisplayTypeName "." "_")
+			$res = $res + ".Convert(" + expr + ")"
+		else if (parameter | HasMethod "Parse" 1)
+			$res = $res + parameter.DisplayTypeName + ".Parse(" + expr + ")"
+		else if (parameter | HasCtor ["string"]) 
+			$res = $res + "new " + parameter.DisplayTypeName + "(" + expr + ")"
+		else if parameter.IsString 
+			$res = $res + expr
+		else if parameter.IsEnum
+			$res = $res + "Enum.Parse<" + (parameter.DisplayTypeName | string.remove (Namespace + ".")) + ">(" + expr + ", true)"
+		end
+		ret $res
+	end
+~}}
+
+using System;
+using System.Collections.Generic;
+namespace {{ Namespace }}
+{
+	public class EntryPoint 
+	{
+		public static string GetHelp(string cmdName = null)
+		{
+			switch(cmdName)
+			{
+				{{ for cmd in Commands }}
+				case "{{ cmd.Name }}":
+					return @"{{cmd.Name}}: {{cmd.HelpText}}
+					{{~
+						if (array.size cmd.Parameters) > 0
+							"Parameters:\n"
+							for param in cmd.Parameters 
+								"\t" + param.Name + ": " + param.HelpText + "\n"					
+							end
+						end
+						if (array.size cmd.Options) > 0
+							"Options:\n"
+							for param in cmd.Options 
+								"\t" + param.Name + "(default =" + param.Default + "): " + param.HelpText + "\n"					
+							end
+						end
+					~}}";
+				{{ end }}
+				default:
+					return "Usage: <command> <parameters> [options]\nCommands: {{ for cmd in Commands; "\\n\\t" + cmd.Name + ":" + cmd.HelpText; end }}";
+			}
+		}
+		private static void Error(string error)
+		{
+			Console.ForegroundColor = ConsoleColor.Red;
+			Console.WriteLine(error);
+			Console.ResetColor();
+			Environment.Exit(0);
+		}
+		public static void Main(string[] args)
+		{  
+			{{~
+				for conv in (GroupByVal Converters) 
+					"\t\t\t" + (converters conv.Key conv.Value) + ";\n"
+				end
+			~}}
+			if(args.Length == 0)
+			{
+				Console.WriteLine(GetHelp());
+				return;
+			}
+			switch(args[0])
+			{
+			{{~ for cmd in Commands ~}}
+				case "{{ cmd.Name }}":
+				{
+					{{~ if cmd.Parameters | length > 0 ~}} 
+					string[] parameters = new string[{{ cmd.Parameters | length }}];
+					for(int param = 1; param <= {{ cmd.Parameters | length }}; param++)
+					{
+						if(param < args.Length) 
+						{
+							
+							parameters[param-1] = args[param];
+						}
+						else 
+						{
+							Error("Not all parameters are specified");
+							return;
+						}
+					} 
+					{{~ end ~}}
+					{{~ if cmd.Options | length > 0 ~}}
+					Dictionary<string, object> options = new Dictionary<string,object>()
+					{
+						{{~ for option in cmd.Options ~}}
+						{ "{{option.Name}}", null },
+						{{~ end ~}}
+					};
+					
+					for(int i = {{array.size cmd.Parameters}} + 1; i < args.Length ;)
+					{
+						if(args[i].StartsWith("--"))
+						{
+							var opt = args[i++].TrimStart('-');
+							if(options.ContainsKey(opt))
+							{ 
+								List<string> strings = new List<string>();
+								while(i < args.Length && !args[i].StartsWith("--"))
+								{
+									strings.Add(args[i++]);
+								}
+								if(strings.Count == 1) 
+								{
+									options[opt] = strings[0];
+								}
+								else 
+								{
+									options[opt] = strings;
+								}
+							}
+							else 
+							{
+								Error($"Undefined option {opt}");
+								return;
+							}
+						}
+					}
+					{{~ end ~}}
+					{{ if (array.size cmd.Parameters) > 0; for i in 0..((array.size cmd.Parameters)-1) }}{{$param = cmd.Parameters[i]}}{{ ($param.DisplayTypeName) }} {{ $param.RawName }} = default; 
+					try 
+					{
+						{{$param.RawName}} = {{ convertion $param ("parameters[" + i + "]") }};
+					}
+					catch 
+					{ 
+						Error("cannot parse parameter {{$param.Name}}");
+					}
+					{{ end }}
+					{{ end }}
+					
+					{{ if (array.size cmd.Options) > 0
+						for ind in 0..((array.size cmd.Options)-1); $opt = cmd.Options[ind] }}
+					{{ $opt.DisplayTypeName + ($opt.IsArray ? "[]" : "") }} {{ $opt.RawName }} = {{ $opt.Default }};
+					try
+					{
+						if(options["{{$opt.Name}}"] != null)
+						{
+							{{ if $opt.IsArray }}
+								var strings = options["{{$opt.Name}}"] as List<string>;
+								if(strings != null) 
+								{ 
+									{{ $opt.RawName }} = new {{$opt.DisplayTypeName}}[strings.Count];
+									for(int arg = 0; arg < strings.Count; arg++)
+									{
+										{{ $opt.RawName }}[arg] = {{ convertion $opt "strings[arg]" }};
+									}
+								}
+								else 
+								{
+									{{ $opt.RawName }} = new[] { 
+										{{ convertion $opt "options[\"" + $opt.Name + "\"] as string" }}
+									};
+								}
+							{{ else }}
+								{{ $opt.RawName }} = {{ convertion $opt "options[\"" + $opt.Name + "\"] as string" }};
+							{{ end }}
+						}
+					}
+					catch
+					{
+						Error("cannot parse option {{$opt.Name}}");
+					}
+					{{ end }}
+					{{ end }}
+					{{ string.remove cmd.FullName (Namespace + ".") }}(
+						{{
+							if  cmd.Parameters | length > 0
+								for p in (0..((cmd.Parameters | length )-1)); 
+									cmd.Parameters[p].RawName + ((p < ((cmd.Parameters | length) - 1) || (cmd.Options | length) > 0) ? "," : ""); 
+								end 
+							end
+						}}
+						{{ 
+							if cmd.Options | length > 0
+								for opt in (0..((cmd.Options | length)-1)); 
+									cmd.Options[opt].RawName + ":" + cmd.Options[opt].RawName + ((opt < ((cmd.Options | length) - 1))? ",":"");
+								end
+							end
+						}}
+					);
+					break;
+				}
+			{{~ end ~}}
+				case "help":
+					if(args.Length > 1)
+					{
+						Console.WriteLine(GetHelp(args[1]));
+					}
+					else
+					{
+						Console.WriteLine(GetHelp());
+					}
+					break;
+				default:
+					Console.WriteLine(GetHelp());
+					break;
+			}
+		}
+	}
+}
