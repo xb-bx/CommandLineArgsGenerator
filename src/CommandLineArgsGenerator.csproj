@@ -11,7 +11,7 @@
         <Description>Source generator to generate command line args parser</Description>
         <PackageProjectUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</PackageProjectUrl>
         <RepositoryUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</RepositoryUrl>
-        <Version>0.3.0</Version>
+        <Version>0.3.1</Version>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
