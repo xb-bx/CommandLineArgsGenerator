@@ -38,13 +38,23 @@ namespace CommandLineArgsGenerator
                 {
                     foreach (var item in cl.BaseList.Types.Select(x => semanticModel.GetTypeInfo(x.Type)).Where(x => x.Type?.Name == "IArgumentConverter"))
                     {
-                        Converters.Add((item.Type as INamedTypeSymbol).TypeArguments[0].ToDisplayString(typeFormat), GetFullName(cl));
+                        var target = (item.Type as INamedTypeSymbol).TypeArguments[0].ToDisplayString(typeFormat);
+                        var name = GetFullName(cl);
+                        if(target.StartsWith(Namespace))
+                        {
+                            target = target.Substring(Namespace.Length + 1);
+                        }
+                        if(name.StartsWith(Namespace))
+                        {
+                            name = name.Substring(Namespace.Length + 1);
+                        }
+                        Converters.Add(target, name);
                     }
                 }
             }
             else if (Namespace is null && node is NamespaceDeclarationSyntax ns) 
             {
-                Namespace = ns.Name.ToFullString();
+                Namespace = ns.Name.ToFullString().Trim();
             }
             return null;
         }

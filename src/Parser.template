@@ -1,36 +1,139 @@
-﻿{{~
-	func length 
-		ret array.size $0
-	end
-	func converters(converter, targets) 
-		$res = ""
-		$convName = (string.replace converter "." "_")
-		$res = $res + "var " + $convName  + " = new " + (converter | string.remove (Namespace + ".") ) + "();"
-		for target in targets 
-			$res = $res + "IArgumentConverter<" + (target| string.remove (Namespace + ".") )+ "> " + (string.replace target "." "_") + " = " + $convName + ";" 
-		end
-		
-		ret $res
-	end
-	func convertion(parameter, expr)
-		$res = ""  
-		if Converters[parameter.DisplayTypeName]
-			$res = $res + (string.replace parameter.DisplayTypeName "." "_")
-			$res = $res + ".Convert(" + expr + ")"
-		else if (parameter | HasMethod "Parse" 1)
-			$res = $res + parameter.DisplayTypeName + ".Parse(" + expr + ")"
-		else if (parameter | HasCtor ["string"]) 
-			$res = $res + "new " + parameter.DisplayTypeName + "(" + expr + ")"
-		else if parameter.IsString 
-			$res = $res + expr
-		else if parameter.IsEnum
-			$res = $res + "Enum.Parse<" + (parameter.DisplayTypeName | string.remove (Namespace + ".")) + ">(" + expr + ", true)"
-		end
-		ret $res
-	end
+﻿{{ convs = {} }}
+{{~ func Help(command)
+        if command.Children  
 ~}}
-
+            case "{{ command.FullName }}":
+                return "{{ command.HelpText }}\nsubcommands:\n{{ for cmd in command.Children }}\t{{cmd.Name}} - {{cmd.HelpText}}\n{{ end }}"; 
+            {{ for cmd in command.Children; Help(cmd); end }}
+            {{~ else ~}}
+            case "{{ command.FullName }}":
+                return 
+@"{{command.HelpText}}
+{{~ if (command.Parameters | array.size) > 0 ~}}
+parameters:
+    {{~ for param in command.Parameters ~}} 
+    {{param.Name}} - {{ param.HelpText }} 
+    {{~ end ~}}
+{{~ end ~}}
+{{~ if (command.Options | array.size) > 0 ~}}
+options:
+    {{ for opt in command.Options }} {{opt.Name}}(default ={{ opt.Default | Escape }}) - {{ opt.HelpText }} {{ end }}
+{{~ end ~}}
+"; 
+        {{~ end ~}}
+{{~ end ~}}
+{{~
+    func Escape(str)
+        ret str | string.replace "\"" "\"\""
+    end
+ ~}}
+ 
+{{~ func GenerateConverter(param, valueToParse) ~}}
+    {{ if convs | object.has_key param.DisplayTypeName }}
+        {{ param.RawName }} = {{ convs[param.DisplayTypeName]}}.Convert({{ valueToParse }});
+    {{ else if param.IsString }}
+        {{ param.RawName }} = {{ valueToParse }};
+    {{ else if param.IsEnum }}
+        {{ param.RawName }} = Enum.Parse<{{ param.DisplayTypeName }}>({{ valueToParse }}, true); 
+    {{ else if HasMethod(param, "Parse", 1)}}
+        {{ param.RawName }} = {{ param.DisplayTypeName}}.Parse({{ valueToParse}});
+    {{ else if HasCtor(param, ["string"])}}
+        {{ param.RawName }} = new {{ param.DisplayTypeName}}({{ valueToParse}});
+    {{ end }} 
+{{~ end ~}}
+{{~ func GenerateOptionConverter(option) ~}}
+    {{ valueToParse = option.RawName + "Raw" }}
+    {{ if option.IsArray }}
+        {{ if convs | object.has_key option.DisplayTypeName }}
+            {{ option.RawName }} = {{ valueToParse }}.Select(o => {{ convs[option.DisplayTypeName]}}.Convert(o)).ToArray();
+        {{ else if option.IsString }}
+            {{ option.RawName }} = {{ valueToParse }}.ToArray();
+        {{ else if option.IsEnum }}
+            {{ option.RawName }} = {{ valueToParse }}.Select(o => Enum.Parse<{{option.DisplayTypeName}}>(o, true)).ToArray(); 
+        {{ else if HasMethod(option, "Parse", 1)}}
+            {{ option.RawName }} = {{ valueToParse }}.Select(o => {{ option.DisplayTypeName}}.Parse(o)).ToArray();
+        {{ else if HasCtor(option, ["string"])}}
+            {{ option.RawName }} = {{ valueToParse }}.Select(o => new {{ option.DisplayTypeName}}(o)).ToArray();
+        {{ end }} 
+    {{ else }}
+        {{ GenerateConverter(option, option.RawName + "Raw") }}
+    {{ end }}
+{{~ end ~}}
+{{~ func GenerateCase(command, nestingLevel) ~}}
+case "{{ command.Name }}":
+{
+    {{ if command.Children }}
+    switch(args[{{ nestingLevel }}])
+    {
+        {{ for cmd in command.Children; GenerateCase(cmd, nestingLevel + 1); end }}
+        default: 
+            Console.WriteLine(GetHelp(args[{{ nestingLevel - 1}}]));
+            Error("Unknown command");
+            break;
+    }
+    {{ else }}
+    if(args.Length < {{ nestingLevel }} + {{ command.Parameters | array.size }})
+    {
+       Error("Not all parameters are specified");
+    }
+    {{ if (command.Parameters | array.size) > 0 }}
+        {{ for parameter in command.Parameters }}
+            {{ parameter.DisplayTypeName }} {{ parameter.RawName }} = default; 
+            try 
+            {
+                {{GenerateConverter(parameter, "args[" + (for.index + nestingLevel) + "]") }}
+            }
+            catch
+            {
+                Error("Cannot parse parameter {{parameter.Name}}");
+            } 
+        {{ end }}
+    {{ end }}
+    {{ if (command.Options | array.size) > 0 }}
+        {{ for option in command.Options }}
+            {{ option.IsArray ? "Queue<string>" : "string" }} {{ option.RawName }}Raw = null;
+        {{ end }}
+        for(int i = {{ nestingLevel + (command.Parameters | array.size) }}; i < args.Length; i++)
+        {
+            switch(args[i++])
+            {
+                {{ for option in command.Options }}
+                case "--{{option.Name}}":
+                    {{ if option.IsArray }}
+                    {{ option.RawName}}Raw = new Queue<string>();
+                    while(i < args.Length && !args[i].StartsWith('-'))
+                    {
+                        {{ option.RawName}}Raw.Enqueue(args[i++]);
+                    }
+                    {{ else }}
+                        {{ option.RawName }}Raw = args[i];
+                    {{ end }}
+                break;
+                {{ end }}
+            }
+        }
+        {{ for option in command.Options }}
+            {{ option.DisplayTypeName }}{{option.IsArray ? "[]": ""}} {{ option.RawName}} = {{ option.Default ?? "default" }};
+            try
+            {
+                if({{option.RawName}}Raw != null)
+                {
+                    {{ GenerateOptionConverter(option) }}
+                }
+            }
+            catch
+            {
+                Error("Cannot parse option {{option.Name}}");
+            }
+        {{ end }}
+        {{ command.NameInSourceCode }}({{ JoinParamsAndOptions(command) }});
+    {{ end }}
+    {{ end }}
+    break;
+}
+{{~ end ~}} 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 namespace {{ Namespace }}
 {
@@ -39,28 +142,11 @@ namespace {{ Namespace }}
 		public static string GetHelp(string cmdName = null)
 		{
 			switch(cmdName)
-			{
-				{{ for cmd in Commands }}
-				case "{{ cmd.Name }}":
-					return @"{{cmd.Name}}: {{cmd.HelpText}}
-					{{~
-						if (array.size cmd.Parameters) > 0
-							"Parameters:\n"
-							for param in cmd.Parameters 
-								"\t" + param.Name + ": " + param.HelpText + "\n"					
-							end
-						end
-						if (array.size cmd.Options) > 0
-							"Options:\n"
-							for param in cmd.Options 
-								"\t" + param.Name + "(default =" + param.Default + "): " + param.HelpText + "\n"					
-							end
-						end
-					~}}";
-				{{ end }}
-				default:
-					return "Usage: <command> <parameters> [options]\nCommands: {{ for cmd in Commands; "\\n\\t" + cmd.Name + ":" + cmd.HelpText; end }}";
-			}
+			{ 
+                {{ for cmd in Root.Children; Help(cmd); end }}
+                default: 
+                    return "Usage: <command> <parameters> [options]\ncommands:\n{{for cmd in Root.Children}}\t{{cmd.Name}} - {{cmd.HelpText}}\n{{ end }}";
+            }
 		}
 		private static void Error(string error)
 		{
@@ -71,153 +157,33 @@ namespace {{ Namespace }}
 		}
 		public static void Main(string[] args)
 		{  
-			{{~
-				for conv in (GroupByVal Converters) 
-					"\t\t\t" + (converters conv.Key conv.Value) + ";\n"
-				end
-			~}}
-			if(args.Length == 0)
-			{
-				Console.WriteLine(GetHelp());
-				return;
-			}
-			switch(args[0])
-			{
-			{{~ for cmd in Commands ~}}
-				case "{{ cmd.Name }}":
-				{
-					{{~ if cmd.Parameters | length > 0 ~}} 
-					string[] parameters = new string[{{ cmd.Parameters | length }}];
-					for(int param = 1; param <= {{ cmd.Parameters | length }}; param++)
-					{
-						if(param < args.Length) 
-						{
-							
-							parameters[param-1] = args[param];
-						}
-						else 
-						{
-							Error("Not all parameters are specified");
-							return;
-						}
-					} 
-					{{~ end ~}}
-					{{~ if cmd.Options | length > 0 ~}}
-					Dictionary<string, object> options = new Dictionary<string,object>()
-					{
-						{{~ for option in cmd.Options ~}}
-						{ "{{option.Name}}", null },
-						{{~ end ~}}
-					};
-					
-					for(int i = {{array.size cmd.Parameters}} + 1; i < args.Length ;)
-					{
-						if(args[i].StartsWith("--"))
-						{
-							var opt = args[i++].TrimStart('-');
-							if(options.ContainsKey(opt))
-							{ 
-								List<string> strings = new List<string>();
-								while(i < args.Length && !args[i].StartsWith("--"))
-								{
-									strings.Add(args[i++]);
-								}
-								if(strings.Count == 1) 
-								{
-									options[opt] = strings[0];
-								}
-								else 
-								{
-									options[opt] = strings;
-								}
-							}
-							else 
-							{
-								Error($"Undefined option {opt}");
-								return;
-							}
-						}
-					}
-					{{~ end ~}}
-					{{ if (array.size cmd.Parameters) > 0; for i in 0..((array.size cmd.Parameters)-1) }}{{$param = cmd.Parameters[i]}}{{ ($param.DisplayTypeName) }} {{ $param.RawName }} = default; 
-					try 
-					{
-						{{$param.RawName}} = {{ convertion $param ("parameters[" + i + "]") }};
-					}
-					catch 
-					{ 
-						Error("cannot parse parameter {{$param.Name}}");
-					}
-					{{ end }}
-					{{ end }}
-					
-					{{ if (array.size cmd.Options) > 0
-						for ind in 0..((array.size cmd.Options)-1); $opt = cmd.Options[ind] }}
-					{{ $opt.DisplayTypeName + ($opt.IsArray ? "[]" : "") }} {{ $opt.RawName }} = {{ $opt.Default }};
-					try
-					{
-						if(options["{{$opt.Name}}"] != null)
-						{
-							{{ if $opt.IsArray }}
-								var strings = options["{{$opt.Name}}"] as List<string>;
-								if(strings != null) 
-								{ 
-									{{ $opt.RawName }} = new {{$opt.DisplayTypeName}}[strings.Count];
-									for(int arg = 0; arg < strings.Count; arg++)
-									{
-										{{ $opt.RawName }}[arg] = {{ convertion $opt "strings[arg]" }};
-									}
-								}
-								else 
-								{
-									{{ $opt.RawName }} = new[] { 
-										{{ convertion $opt "options[\"" + $opt.Name + "\"] as string" }}
-									};
-								}
-							{{ else }}
-								{{ $opt.RawName }} = {{ convertion $opt "options[\"" + $opt.Name + "\"] as string" }};
-							{{ end }}
-						}
-					}
-					catch
-					{
-						Error("cannot parse option {{$opt.Name}}");
-					}
-					{{ end }}
-					{{ end }}
-					{{ string.remove cmd.FullName (Namespace + ".") }}(
-						{{
-							if  cmd.Parameters | length > 0
-								for p in (0..((cmd.Parameters | length )-1)); 
-									cmd.Parameters[p].RawName + ((p < ((cmd.Parameters | length) - 1) || (cmd.Options | length) > 0) ? "," : ""); 
-								end 
-							end
-						}}
-						{{ 
-							if cmd.Options | length > 0
-								for opt in (0..((cmd.Options | length)-1)); 
-									cmd.Options[opt].RawName + ":" + cmd.Options[opt].RawName + ((opt < ((cmd.Options | length) - 1))? ",":"");
-								end
-							end
-						}}
-					);
-					break;
-				}
-			{{~ end ~}}
-				case "help":
-					if(args.Length > 1)
-					{
-						Console.WriteLine(GetHelp(args[1]));
-					}
-					else
-					{
-						Console.WriteLine(GetHelp());
-					}
-					break;
-				default:
-					Console.WriteLine(GetHelp());
-					break;
-			}
-		}
+            if(args.Length == 0)
+            {
+                Console.WriteLine(GetHelp());
+                return;
+            }
+            {{ for converter in Converters; $validName = converter.Key | string.replace "." "_" }}
+                var {{ $validName }} = new {{ converter.Key }}();
+                {{ for targetType in converter.Value }}
+                    {{~ convName =  targetType | string.replace "." "_"  ~}}
+                    IArgumentConverter<{{targetType}}> {{ convName }} = {{ $validName }};
+                    {{ convs[targetType] = convName }}
+                {{ end }}
+            {{ end }}  
+            switch(args[0])
+            {
+                case "help":
+                    if(args.Length == 1)
+                    {
+                        Console.WriteLine(GetHelp());
+                    }
+                    else
+                    {
+                        Console.WriteLine(GetHelp(string.Join(" ", args.Skip(1))));
+                    }
+                    break;
+                {{ for cmd in Root.Children; GenerateCase(cmd, 1); end }}
+            }
+        }
 	}
 }

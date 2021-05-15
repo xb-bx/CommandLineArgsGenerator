@@ -29,16 +29,17 @@ namespace CommandLineArgsGenerator
         }
         public void Execute(GeneratorExecutionContext context)
         { 
+            
             var receiver = context.SyntaxContextReceiver as ParserSyntaxReceiver; 
             if (receiver?.Root?.Class != null && receiver.Namespace != null)
             {
                 var semanticModel = context.Compilation.GetSemanticModel(receiver.Root.Class.SyntaxTree);
                 var cmds = GetCommands(receiver.Root.Class, semanticModel, out ICommandInfo defaultCommand);
                 receiver.Root.Children = cmds;
-                receiver.Root.Default = defaultCommand;
+                receiver.Root.Default = defaultCommand; 
                 var model = new
                     {
-                        Namespace = receiver.Namespace.Trim(),
+                        Namespace = receiver.Namespace,
                         Root = receiver.Root,
                         Converters = receiver.Converters.GroupBy(x => x.Value).ToDictionary(t => t.Key, t => t.Select(r => r.Key).ToList())
                     }; 
@@ -46,12 +47,13 @@ namespace CommandLineArgsGenerator
                 
                 sc.Import("HasMethod", (Func<ParameterInfo, string, int, bool>)((param,name,args) => param.HasMethod(name, args)));
                 sc.Import("HasCtor", (Func<ParameterInfo, IEnumerable<object>, bool>)((param, args) => param.HasCtor(args.Cast<string>().ToArray())));
+                sc.Import("JoinParamsAndOptions", (Func<CommandInfo, string>)((cmd) => string.Join(", ", cmd.Parameters.Concat(cmd.Options).Select(p => p.RawName))));
                 
                 var ctx = new TemplateContext();
                 ctx.PushGlobal(sc);
                 sc.Import(model, x => true , x => x.Name);
                 ctx.MemberRenamer = x => x.Name; 
-                
+                File.WriteAllText("D:\\ep.cs", template.Render(ctx));
                 context.AddSource("EntryPoint.cs", template.Render(ctx));
 
             }
@@ -194,7 +196,7 @@ namespace CommandLineArgsGenerator
                     Name = TransformName(name),
                     Type = t,
                     HelpText = help,
-                    DisplayTypeName = type.ToDisplayString(typeFormat),
+                    DisplayTypeName = t.ToDisplayString(typeFormat),
                     IsArray = true,
                     Default = param.Default?.ToString().TrimStart('=') ?? "null"
                 };
