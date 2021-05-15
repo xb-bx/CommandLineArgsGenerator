@@ -52,8 +52,7 @@ namespace CommandLineArgsGenerator
                 var ctx = new TemplateContext();
                 ctx.PushGlobal(sc);
                 sc.Import(model, x => true , x => x.Name);
-                ctx.MemberRenamer = x => x.Name; 
-                File.WriteAllText("D:\\ep.cs", template.Render(ctx));
+                ctx.MemberRenamer = x => x.Name;  
                 context.AddSource("EntryPoint.cs", template.Render(ctx));
 
             }
