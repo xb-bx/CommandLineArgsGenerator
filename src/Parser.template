@@ -1,13 +1,17 @@
 ﻿{{ convs = {} }}
-{{
-    
-}}
+{{~ func ShortHelp(cmd) ~}}{{ cmd.Name }} - {{ cmd.HelpText }}{{~ end~}}
+{{~
+    func GetCmdHelp(command)
+~}}
+    "{{ command.HelpText }}\nsubcommands:\n{{~if command.Default ~}}\t(default){{ShortHelp(command.Default)}}\n{{ end }}{{ for cmd in command.Children }}\t{{ShortHelp(cmd)}}\n{{ end }} ";
+{{~ end ~}}
 {{~ func Help(command)
         if command.Children  
 ~}}
             case "{{ command.FullName }}":
-                return "{{ command.HelpText }}\nsubcommands:\n{{ for cmd in command.Children }}\t{{cmd.Name}} - {{cmd.HelpText}}\n{{ end }}"; 
+                return {{ GetCmdHelp(command) }}; 
             {{ for cmd in command.Children; Help(cmd); end }}
+        {{ if command.Default; Help(command.Default); end }}
         {{~ else ~}}
             case "{{ command.FullName }}":
                 return 
@@ -22,8 +26,9 @@ parameters:
 options:
     {{ for opt in command.Options }} {{opt.Name}}(default ={{ opt.Default | Escape }}) - {{ opt.HelpText }} {{ end }}
 {{~ end ~}}
-"; 
+";      
         {{~ end ~}}
+        
 {{~ end ~}}
 {{~
     func Escape(str)
@@ -62,16 +67,18 @@ options:
         {{ GenerateConverter(option, option.RawName + "Raw") }}
     {{ end }}
 {{~ end ~}}
+
 {{~ func GenerateCase(command, nestingLevel, isDefault = false) ~}}
+
 {{~ if isDefault; nestingLevel = nestingLevel-1 ~}}
-case string s:
+case string {{ command.RawName }}:
 {{~ else ~}}
 case "{{ command.Name }}":
 {{~ end ~}}
 {
     start = {{ nestingLevel }};
     {{ if isDefault }}
-    if(s == "{{ command.Name }}")
+    if({{ command.RawName }} == "{{ command.Name }}")
     {
         start++;
     }
@@ -163,9 +170,10 @@ namespace {{ Namespace }}
 		{
 			switch(cmdName)
 			{ 
-                {{ for cmd in Root.Children; Help(cmd); end }}
+                {{ for cmd in Root.Children; Help(cmd); end }} 
+                {{ if Root.Default; Help(Root.Default); end }}
                 default: 
-                    return "Usage: <command> <parameters> [options]\ncommands:\n{{for cmd in Root.Children}}\t{{cmd.Name}} - {{cmd.HelpText}}\n{{ end }}";
+                    return "Usage: <command> <parameters> [options]\ncommands:\n\t(default){{~if Root.Default; ShortHelp(Root.Default); end ~}}\n{{~for cmd in Root.Children~}}\t{{ShortHelp(cmd)}}\n{{~ end ~}}";
             }
 		}
 		private static void Error(string error)
@@ -204,6 +212,7 @@ namespace {{ Namespace }}
                     }
                     break;
                 {{ for cmd in Root.Children; GenerateCase(cmd, 1); end }}
+                {{ if Root.Default; GenerateCase(Root.Default, 1, true); end }}
             }
         }
 	}
