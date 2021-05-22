@@ -1,11 +1,14 @@
 ﻿{{ convs = {} }}
+{{
+    
+}}
 {{~ func Help(command)
         if command.Children  
 ~}}
             case "{{ command.FullName }}":
                 return "{{ command.HelpText }}\nsubcommands:\n{{ for cmd in command.Children }}\t{{cmd.Name}} - {{cmd.HelpText}}\n{{ end }}"; 
             {{ for cmd in command.Children; Help(cmd); end }}
-            {{~ else ~}}
+        {{~ else ~}}
             case "{{ command.FullName }}":
                 return 
 @"{{command.HelpText}}
@@ -59,20 +62,37 @@ options:
         {{ GenerateConverter(option, option.RawName + "Raw") }}
     {{ end }}
 {{~ end ~}}
-{{~ func GenerateCase(command, nestingLevel) ~}}
+{{~ func GenerateCase(command, nestingLevel, isDefault = false) ~}}
+{{~ if isDefault; nestingLevel = nestingLevel-1 ~}}
+case string s:
+{{~ else ~}}
 case "{{ command.Name }}":
+{{~ end ~}}
 {
+    start = {{ nestingLevel }};
+    {{ if isDefault }}
+    if(s == "{{ command.Name }}")
+    {
+        start++;
+    }
+    {{ end }}
     {{ if command.Children }}
     switch(args[{{ nestingLevel }}])
     {
         {{ for cmd in command.Children; GenerateCase(cmd, nestingLevel + 1); end }}
+        {{~ 
+        if command.Default
+            GenerateCase(command.Default, nestingLevel + 1, true)
+        else 
+        ~}}
         default: 
             Console.WriteLine(GetHelp(args[{{ nestingLevel - 1}}]));
             Error("Unknown command");
             break;
+        {{~ end ~}}
     }
     {{ else }}
-    if(args.Length < {{ nestingLevel }} + {{ command.Parameters | array.size }})
+    if(args.Length < start + {{ command.Parameters | array.size }})
     {
        Error("Not all parameters are specified");
     }
@@ -81,7 +101,7 @@ case "{{ command.Name }}":
             {{ parameter.DisplayTypeName }} {{ parameter.RawName }} = default; 
             try 
             {
-                {{GenerateConverter(parameter, "args[" + (for.index + nestingLevel) + "]") }}
+                {{GenerateConverter(parameter, "args[" + (for.index) + " + start]") }}
             }
             catch
             {
@@ -126,8 +146,8 @@ case "{{ command.Name }}":
                 Error("Cannot parse option {{option.Name}}");
             }
         {{ end }}
-        {{ command.NameInSourceCode }}({{ JoinParamsAndOptions(command) }});
     {{ end }}
+    {{ command.NameInSourceCode }}({{ JoinParamsAndOptions(command) }});
     {{ end }}
     break;
 }
@@ -157,6 +177,7 @@ namespace {{ Namespace }}
 		}
 		public static void Main(string[] args)
 		{  
+            int start = 0;
             if(args.Length == 0)
             {
                 Console.WriteLine(GetHelp());
