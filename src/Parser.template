@@ -70,36 +70,42 @@ options:
 
 {{~ func GenerateCase(command, nestingLevel, isDefault = false) ~}}
 
-{{~ if isDefault; nestingLevel = nestingLevel-1 ~}}
+{{~ if isDefault ~}}
 case string {{ command.RawName }}:
 {{~ else ~}}
 case "{{ command.Name }}":
 {{~ end ~}}
-{
-    start = {{ nestingLevel }};
+{ 
     {{ if isDefault }}
     if({{ command.RawName }} == "{{ command.Name }}")
     {
-        start++;
+        segment = new ArraySegment<string>(args, segment.Offset+1, segment.Count - 1);
     }
+    {{ else }}
+    segment = new ArraySegment<string>(args, segment.Offset+1, segment.Count - 1);
     {{ end }}
     {{ if command.Children }}
-    switch(args[{{ nestingLevel }}])
+    if(segment.Count < 1)
     {
-        {{ for cmd in command.Children; GenerateCase(cmd, nestingLevel + 1); end }}
+        Console.WriteLine(GetHelp());
+        return;
+    }
+    switch(segment[0])
+    {
+        {{ for cmd in command.Children; GenerateCase(cmd, (isDefault ? nestingLevel : (nestingLevel + 1))); end }}
         {{~ 
         if command.Default
-            GenerateCase(command.Default, nestingLevel + 1, true)
+            GenerateCase(command.Default,(nestingLevel + 1), true)
         else 
         ~}}
         default: 
-            Console.WriteLine(GetHelp(args[{{ nestingLevel - 1}}]));
+            Console.WriteLine(GetHelp());
             Error("Unknown command");
             break;
         {{~ end ~}}
     }
     {{ else }}
-    if(args.Length < start + {{ command.Parameters | array.size }})
+    if(segment.Count < {{ command.Parameters | array.size }})
     {
        Error("Not all parameters are specified");
     }
@@ -108,7 +114,7 @@ case "{{ command.Name }}":
             {{ parameter.DisplayTypeName }} {{ parameter.RawName }} = default; 
             try 
             {
-                {{GenerateConverter(parameter, "args[" + (for.index) + " + start]") }}
+                {{GenerateConverter(parameter, "segment[" + (for.index) + "]") }}
             }
             catch
             {
@@ -120,15 +126,15 @@ case "{{ command.Name }}":
         {{ for option in command.Options }}
             {{ option.IsArray ? "Queue<string>" : "string" }} {{ option.RawName }}Raw = null;
         {{ end }}
-        for(int i = {{ nestingLevel + (command.Parameters | array.size) }}; i < args.Length; i++)
+        for(int i = {{ command.Parameters | array.size }}; i < segment.Count; i++)
         {
-            switch(args[i++])
+            switch(segment[i++])
             {
                 {{ for option in command.Options }}
                 case "--{{option.Name}}":
                     {{ if option.IsArray }}
                     {{ option.RawName}}Raw = new Queue<string>();
-                    while(i < args.Length && !args[i].StartsWith('-'))
+                    while(i < segment.Length && !segment[i].StartsWith('-'))
                     {
                         {{ option.RawName}}Raw.Enqueue(args[i++]);
                     }
@@ -184,8 +190,7 @@ namespace {{ Namespace }}
 			Environment.Exit(0);
 		}
 		public static void Main(string[] args)
-		{  
-            int start = 0;
+		{   
             if(args.Length == 0)
             {
                 Console.WriteLine(GetHelp());
@@ -199,7 +204,8 @@ namespace {{ Namespace }}
                     {{ convs[targetType] = convName }}
                 {{ end }}
             {{ end }}  
-            switch(args[0])
+            var segment = new ArraySegment<string>(args);
+            switch(segment[0])
             {
                 case "help":
                     if(args.Length == 1)
