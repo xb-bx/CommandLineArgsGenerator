@@ -13,13 +13,13 @@ namespace CommandLineArgsGenerator
 {
     public class ParserSyntaxReceiver : ISyntaxContextReceiver
     {
-        public RootCommand Root { get; private set; }
-        public string Namespace { get; private set; }
+        public RootCommand? Root { get; private set; }
+        public string? Namespace { get; private set; }
         public Dictionary<string, string> Converters { get; private set; } = new();
         private static SymbolDisplayFormat typeFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
 
 
-        private RootCommand GetClass(SyntaxNode node, SemanticModel semanticModel)
+        private RootCommand? GetClass(SyntaxNode node, SemanticModel semanticModel)
         {
             if (node is ClassDeclarationSyntax cl)
             {
@@ -38,16 +38,20 @@ namespace CommandLineArgsGenerator
                 {
                     foreach (var item in cl.BaseList.Types.Select(x => semanticModel.GetTypeInfo(x.Type)).Where(x => x.Type?.Name == "IArgumentConverter"))
                     {
-                        var target = (item.Type as INamedTypeSymbol).TypeArguments[0].ToDisplayString(typeFormat);
+                        var target = (item.Type as INamedTypeSymbol)!.TypeArguments[0].ToDisplayString(typeFormat);
                         var name = GetFullName(cl);
-                        if(target.StartsWith(Namespace))
-                        {
-                            target = target.Substring(Namespace.Length + 1);
+                        if(Namespace is not null)
+                        {                            
+                            if(target.StartsWith(Namespace))
+                            {
+                                target = target.Substring(Namespace.Length + 1);
+                            }
+                            if(name.StartsWith(Namespace))
+                            {
+                                name = name.Substring(Namespace.Length + 1);
+                            }
                         }
-                        if(name.StartsWith(Namespace))
-                        {
-                            name = name.Substring(Namespace.Length + 1);
-                        }
+                        
                         Converters.Add(target, name);
                     }
                 }
@@ -70,19 +74,19 @@ namespace CommandLineArgsGenerator
                 {
                     sb.Insert(0, '.');
                     sb.Insert(0, nds.Name.ToString());
-                    current = nds.Parent;
+                    current = nds.Parent!;
                 }
                 else if (current is ClassDeclarationSyntax cds)
                 {
                     sb.Insert(0, '.');
                     sb.Insert(0, cds.Identifier.ToString());
-                    current = cds.Parent;
+                    current = cds.Parent!;
                 }
                 else if (current is MethodDeclarationSyntax mds)
                 {
                     sb.Insert(0, '.');
                     sb.Insert(0, mds.Identifier.ToString());
-                    current = mds.Parent;
+                    current = mds.Parent!;
                 }
                 else
                 {
@@ -99,7 +103,7 @@ namespace CommandLineArgsGenerator
         public void OnVisitSyntaxNode(GeneratorSyntaxContext context)
         {
             var cl = GetClass(context.Node, context.SemanticModel);
-            if (Root is null)
+            if (Root is null && cl is not null)
             {
                 Root = cl;
             }

@@ -11,7 +11,7 @@ namespace CommandLineArgsGenerator
 
             sb
                 .Using("System")
-                .Namespace((context.SyntaxReceiver as NamespaceSyntaxReceiver).Namespace)
+                .Namespace(((context.SyntaxReceiver as NamespaceSyntaxReceiver)!.Namespace!))
                     .Class("AppAttribute", "Attribute") 
                     .Close()
                     .Class("DefaultAttribute", "Attribute")

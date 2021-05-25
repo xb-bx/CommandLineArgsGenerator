@@ -11,14 +11,14 @@ namespace CommandLineArgsGenerator
             sb.AppendLine($"using {@namespace};");
             return this;
         }
-        public SourceBuilder Class(string name, string inherited = null)
+        public SourceBuilder Class(string name, string? inherited = null)
         {
             if(currentIndentLevel > 0)
             {
                 sb.Append('\t', currentIndentLevel);
             }
             sb.Append($"public class {name} ");
-            if(inherited != null)
+            if(inherited is not null)
             {
                 sb.AppendLine($": {inherited}");
                 if (currentIndentLevel > 0)
@@ -34,14 +34,14 @@ namespace CommandLineArgsGenerator
             currentIndentLevel++;
             return this;
         }
-        public SourceBuilder Interface(string name, string inherited = null)
+        public SourceBuilder Interface(string name, string? inherited = null)
         {
             if (currentIndentLevel > 0)
             {
                 sb.Append('\t', currentIndentLevel);
             }
             sb.Append($"public interface {name} ");
-            if (inherited != null)
+            if (inherited is not null)
             {
                 sb.AppendLine($": {inherited}");
                 if (currentIndentLevel > 0)

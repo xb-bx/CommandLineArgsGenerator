@@ -31,10 +31,10 @@ namespace CommandLineArgsGenerator
         { 
             
             var receiver = context.SyntaxContextReceiver as ParserSyntaxReceiver; 
-            if (receiver?.Root?.Class != null && receiver.Namespace != null)
+            if (receiver?.Root?.Class is not null && receiver.Namespace is not null)
             {
                 var semanticModel = context.Compilation.GetSemanticModel(receiver.Root.Class.SyntaxTree);
-                var cmds = GetCommands(receiver.Root.Class, semanticModel, out ICommandInfo defaultCommand);
+                var cmds = GetCommands(receiver.Root.Class, semanticModel, out ICommandInfo? defaultCommand);
                 receiver.Root.Children = cmds;
                 receiver.Root.Default = defaultCommand; 
                 var model = new
@@ -52,14 +52,13 @@ namespace CommandLineArgsGenerator
                 var ctx = new TemplateContext();
                 ctx.PushGlobal(sc);
                 sc.Import(model, x => true , x => x.Name);
-                ctx.MemberRenamer = x => x.Name;  
+                ctx.MemberRenamer = x => x.Name; 
                 context.AddSource("EntryPoint.cs", template.Render(ctx));
-
             }
 
         }
 
-        private List<ICommandInfo> GetCommands(ClassDeclarationSyntax @class, SemanticModel semanticModel, out ICommandInfo defaultCommand, string prevName = null)
+        private List<ICommandInfo> GetCommands(ClassDeclarationSyntax @class, SemanticModel semanticModel, out ICommandInfo? defaultCommand, string? prevName = null)
         {
             defaultCommand = null;
             var cmds = new List<ICommandInfo>();
@@ -101,7 +100,7 @@ namespace CommandLineArgsGenerator
                     Name = name,
                     FullName = prevName is not null ? $"{prevName} {name}" : name,
                     HelpText = doc.Descendants("summary").FirstOrDefault()?.Value.Trim(),
-                    Children = GetCommands(cl, semanticModel, out ICommandInfo defCmd, name),
+                    Children = GetCommands(cl, semanticModel, out ICommandInfo? defCmd, name),
                     Class = cl,
                     RawName = rawName,
                     Default = defCmd
@@ -122,8 +121,7 @@ namespace CommandLineArgsGenerator
         private IEnumerable<MethodDeclarationSyntax> GetMethods(ClassDeclarationSyntax @class)
         {
             return @class.Members
-                .Where(x => x is MethodDeclarationSyntax)
-                .Cast<MethodDeclarationSyntax>()
+                .OfType<MethodDeclarationSyntax>()
                 .Where(x => x.AttributeLists
                         .All(attr => attr.Attributes
                                     .FirstOrDefault(a => a.Name.ToString() == "Ignore"
@@ -166,7 +164,7 @@ namespace CommandLineArgsGenerator
         {
             string name = param.Identifier.ValueText;
 
-            var typeInfo = semanticModel.GetTypeInfo(param.Type);
+            var typeInfo = semanticModel.GetTypeInfo(param.Type!);
             var p = documentation.Descendants("param")
                 .FirstOrDefault(p => p.Attribute("name")?.Value == name);
 
@@ -174,7 +172,7 @@ namespace CommandLineArgsGenerator
                 ?.Value.Trim() ?? "";
 
             var type = (typeInfo.Type);
-            string displayTypeName = typeInfo.Type.ToDisplayString(typeFormat);
+            string displayTypeName = typeInfo.Type!.ToDisplayString(typeFormat);
             if (param.Default == null && type?.TypeKind != TypeKind.Array)
             {
                 return new ParameterInfo
@@ -188,14 +186,14 @@ namespace CommandLineArgsGenerator
             }
             else if (type?.TypeKind == TypeKind.Array)
             {
-                var t = (type as IArrayTypeSymbol).ElementType as INamedTypeSymbol;
+                var t = (type as IArrayTypeSymbol)!.ElementType as INamedTypeSymbol;
                 return new OptionInfo
                 {
                     RawName = name,
                     Name = TransformName(name),
                     Type = t,
                     HelpText = help,
-                    DisplayTypeName = t.ToDisplayString(typeFormat),
+                    DisplayTypeName = t!.ToDisplayString(typeFormat),
                     IsArray = true,
                     Default = param.Default?.ToString().TrimStart('=') ?? "null"
                 };

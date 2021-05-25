@@ -2,6 +2,8 @@
     <PropertyGroup>
         <LangVersion>latest</LangVersion>
         <TargetFramework>netstandard2.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        
         <Authors>Dotnet-And-Happiness</Authors>
         <DevelopmentDependency>True</DevelopmentDependency>
         <NoWarn>$(NoWarn);NU5128</NoWarn>
