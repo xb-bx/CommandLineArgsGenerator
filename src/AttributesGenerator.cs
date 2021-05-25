@@ -7,24 +7,29 @@ namespace CommandLineArgsGenerator
     {
         public void Execute(GeneratorExecutionContext context)
         {
-            SourceBuilder sb = new SourceBuilder();
-
-            sb
-                .Using("System")
-                .Namespace(((context.SyntaxReceiver as NamespaceSyntaxReceiver)!.Namespace!))
-                    .Class("AppAttribute", "Attribute") 
-                    .Close()
-                    .Class("DefaultAttribute", "Attribute")
-                    .Close()
-                    .Class("IgnoreAttribute", "Attribute")
-                    .Close() 
-                    .Interface("IArgumentConverter<T>")
-                        .RawCode("T Convert(string str);")
-                    .Close()
-                .Close(); 
-            context.AddSource("Attributes.cs", sb.ToString());
-                //System.IO.File.WriteAllText("/home/jj/log.cs", sb.ToString());
-
+            string attributes = 
+$@"
+using System;
+namespace {(context.SyntaxReceiver as NamespaceSyntaxReceiver)!.Namespace!} 
+{{
+    public class AppAttribute : Attribute 
+    {{
+        
+    }}
+    public class DefaultAttribute : Attribute 
+    {{
+        
+    }}
+    public class IgnoreAttribute : Attribute 
+    {{
+        
+    }}
+    public interface IArgumentConverter<T> 
+    {{
+        T Convert(string str);
+    }}
+}}
+";      context.AddSource("Attributes.cs", attributes);
         }
 
         public void Initialize(GeneratorInitializationContext context)
