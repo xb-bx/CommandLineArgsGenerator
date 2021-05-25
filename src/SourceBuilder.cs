@@ -2,13 +2,6 @@
 
 namespace CommandLineArgsGenerator
 {
-    public class Command
-    {
-        public string Name { get; set; }
-        public string[] Parameters { get; set; }
-        public string[] Options { get; set; }
-
-    }
     public class SourceBuilder
     {
         private StringBuilder sb = new StringBuilder();
