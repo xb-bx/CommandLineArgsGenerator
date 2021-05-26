@@ -134,7 +134,7 @@ case "{{ command.Name }}":
                 case "--{{option.Name}}":
                     {{ if option.IsArray }}
                     {{ option.RawName}}Raw = new Queue<string>();
-                    while(i < segment.Length && !segment[i].StartsWith('-'))
+                    while(i < segment.Count && !segment[i].StartsWith('-'))
                     {
                         {{ option.RawName}}Raw.Enqueue(args[i++]);
                     }
