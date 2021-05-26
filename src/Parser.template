@@ -138,6 +138,19 @@ case "{{ command.Name }}":
                     {
                         {{ option.RawName}}Raw.Enqueue(args[i++]);
                     }
+                    {{ else if option.IsBool }}
+                    if(i < segment.Count && (segment[i].ToLower() == "true" || segment[i].ToLower() == "false"))
+                    {
+                        {{ option.RawName }}Raw = segment[i];
+                    }
+                    else
+                    {
+                        {{ if option.Default == "true" }}
+                        {{ option.RawName }}Raw = "false";
+                        {{ else }}
+                        {{ option.RawName }}Raw = "true"; 
+                        {{ end }} 
+                    }
                     {{ else }}
                         {{ option.RawName }}Raw = segment[i];
                     {{ end }}
