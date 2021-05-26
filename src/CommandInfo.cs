@@ -13,7 +13,7 @@ namespace CommandLineArgsGenerator
         public string HelpText { get; set; }
         public ParameterInfo[] Parameters { get; set; }
         public OptionInfo[] Options { get; set; }
-
+        public bool IsTask { get; set; }
         public override bool Equals(object obj)
         {
             return obj is CommandInfo info &&

@@ -52,7 +52,7 @@ namespace CommandLineArgsGenerator
                 var ctx = new TemplateContext();
                 ctx.PushGlobal(sc);
                 sc.Import(model, x => true , x => x.Name);
-                ctx.MemberRenamer = x => x.Name; 
+                ctx.MemberRenamer = x => x.Name;
                 context.AddSource("EntryPoint.cs", template.Render(ctx));
             }
 
@@ -65,6 +65,7 @@ namespace CommandLineArgsGenerator
             var methods = GetMethods(@class);
             foreach (var method in methods)
             {
+                
                 var doc = GetXmlDocumentation(method);
                 var rawName = method.Identifier.ToString().Trim();
                 var paramAndOpts = GetParamsAndOptions(method, doc, semanticModel);
@@ -78,6 +79,7 @@ namespace CommandLineArgsGenerator
                         Parameters = paramAndOpts.parameters,
                         Options = paramAndOpts.options,
                         HelpText = doc.Descendants("summary").FirstOrDefault()?.Value.Trim(),
+                        IsTask = semanticModel.GetTypeInfo(method.ReturnType).Type?.Name == "Task",
                     };
                 if(method.AttributeLists.Any(x => x.Attributes.Any(attr => attr.Name.ToString() is "Default")))
                 {
@@ -195,7 +197,7 @@ namespace CommandLineArgsGenerator
                     HelpText = help,
                     DisplayTypeName = t!.ToDisplayString(typeFormat),
                     IsArray = true,
-                    Default = param.Default?.ToString().TrimStart('=') ?? "null"
+                    Default = param.Default?.ToString().TrimStart('=').TrimStart() ?? "null"
                 };
             }
             else
@@ -207,7 +209,7 @@ namespace CommandLineArgsGenerator
                     Type = type as INamedTypeSymbol,
                     HelpText = help,
                     DisplayTypeName = displayTypeName,
-                    Default = param.Default?.ToString().TrimStart('=') ?? "null"
+                    Default = param.Default?.ToString().TrimStart('=').TrimStart() ?? "null"
                 };
             }
         }

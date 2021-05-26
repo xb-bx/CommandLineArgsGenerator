@@ -173,7 +173,7 @@ case "{{ command.Name }}":
             }
         {{ end }}
     {{ end }}
-    {{ command.NameInSourceCode }}({{ JoinParamsAndOptions(command) }});
+    {{ command.NameInSourceCode }}({{ JoinParamsAndOptions(command) }}){{~ if command.IsTask ~}}.GetAwaiter().GetResult(){{ end }};
     {{ end }}
     break;
 }
