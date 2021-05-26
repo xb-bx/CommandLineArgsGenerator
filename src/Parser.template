@@ -139,7 +139,7 @@ case "{{ command.Name }}":
                         {{ option.RawName}}Raw.Enqueue(args[i++]);
                     }
                     {{ else }}
-                        {{ option.RawName }}Raw = args[i];
+                        {{ option.RawName }}Raw = segment[i];
                     {{ end }}
                 break;
                 {{ end }}
