@@ -197,6 +197,7 @@ namespace CommandLineArgsGenerator
                     HelpText = help,
                     DisplayTypeName = t!.ToDisplayString(typeFormat),
                     IsArray = true,
+                    Alias = p?.Attribute("alias")?.Value,
                     Default = param.Default?.ToString().TrimStart('=').TrimStart() ?? "null"
                 };
             }
@@ -209,6 +210,7 @@ namespace CommandLineArgsGenerator
                     Type = type as INamedTypeSymbol,
                     HelpText = help,
                     DisplayTypeName = displayTypeName,
+                    Alias = p?.Attribute("alias")?.Value,
                     Default = param.Default?.ToString().TrimStart('=').TrimStart() ?? "null"
                 };
             }
