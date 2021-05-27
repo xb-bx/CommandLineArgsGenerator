@@ -139,7 +139,7 @@ case "{{ command.Name }}":
                     {{ option.RawName}}Raw = new Queue<string>();
                     while(i < segment.Count && !segment[i].StartsWith('-'))
                     {
-                        {{ option.RawName}}Raw.Enqueue(args[i++]);
+                        {{ option.RawName}}Raw.Enqueue(segment[i++]);
                     }
                     {{ else if option.IsBool }}
                     if(i < segment.Count && (segment[i].ToLower() == "true" || segment[i].ToLower() == "false"))
