@@ -220,6 +220,7 @@ namespace CommandLineArgsGenerator
         {
 
             var pars = method.ParameterList.Parameters
+                    .Where(param => param.AttributeLists.All(attrs => !attrs.Attributes.Any(attr => attr.Name.ToString() == "Ignore")))
                     .Select(param => GetParamOrOption(param, semanticModel, documentation)).ToArray();
 
             var parameters = pars.Where(param => param is not OptionInfo).ToArray();
