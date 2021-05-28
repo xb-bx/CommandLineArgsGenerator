@@ -135,6 +135,12 @@ case "{{ command.Name }}":
                 case "-{{ option.Alias }}":
                 {{ end }}
                 case "--{{option.Name}}":
+                    {{ if !option.IsBool }}
+                    if(i >= segment.Count)
+                    {
+                        Error("Specify option value!");
+                    }
+                    {{ end }}
                     {{ if option.IsArray }}
                     {{ option.RawName}}Raw = new Queue<string>();
                     while(i < segment.Count && !segment[i].StartsWith('-'))
