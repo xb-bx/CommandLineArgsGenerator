@@ -23,6 +23,29 @@ Usage: <command> <parameters> [options]
 Commands:
         my-cool-command: This will be help text for command
 ```
+Nested commands:
+```cs
+[App] // Necessary auto generated attribute
+public class Program
+{
+  public class File 
+  {
+    public static void Create(FileInfo file)
+    {
+      ...
+    }
+    public static void Delete(FileInfo file)
+    {
+      ...
+    }
+  }
+}
+```
+There will be one command 'file' with two subcommands 'create' and 'delete'
+### Tasks
+Methods that returns `Task` or `Task<T>` are supported
+### Default commands
+You can mark method with attribute `Default`
 ## Type conversation
 ***Supported any type*** that has static method Parse(string) or constructor with one argument of type string.
 For example, int or FileInfo.
