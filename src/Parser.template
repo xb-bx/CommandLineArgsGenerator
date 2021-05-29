@@ -126,7 +126,7 @@ case "{{ command.Name }}":
         {{ for option in command.Options }}
             {{ option.IsArray ? "Queue<string>" : "string" }} {{ option.RawName }}Raw = null;
         {{ end }}
-        for(int i = {{ command.Parameters | array.size }}; i < segment.Count; i++)
+        for(int i = {{ command.Parameters | array.size }}; i < segment.Count;)
         {
             switch(segment[i++])
             {
@@ -150,7 +150,7 @@ case "{{ command.Name }}":
                     {{ else if option.IsBool }}
                     if(i < segment.Count && (segment[i].ToLower() == "true" || segment[i].ToLower() == "false"))
                     {
-                        {{ option.RawName }}Raw = segment[i];
+                        {{ option.RawName }}Raw = segment[i++];
                     }
                     else
                     {
@@ -161,7 +161,7 @@ case "{{ command.Name }}":
                         {{ end }} 
                     }
                     {{ else }}
-                        {{ option.RawName }}Raw = segment[i];
+                        {{ option.RawName }}Raw = segment[i++];
                     {{ end }}
                 break;
                 {{ end }}
