@@ -13,7 +13,7 @@
         <Description>Source generator to generate command line args parser</Description>
         <PackageProjectUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</PackageProjectUrl>
         <RepositoryUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</RepositoryUrl>
-        <Version>0.5.1</Version>
+        <Version>0.5.2</Version>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -22,7 +22,9 @@
     <ItemGroup>
         <EmbeddedResource Include="Parser.template"/>
     </ItemGroup>
-
+    <ItemGroup>
+        <CompilerVisibleProperty Include="LogGeneratedParser" />
+    </ItemGroup>
     <ItemGroup>
         <PackageReference PrivateAssets="all" Include="Microsoft.CSharp" Version="4.5.0"/>
         <PackageReference PrivateAssets="all" Include="System.Threading.Tasks.Extensions" Version="4.5.4"/>

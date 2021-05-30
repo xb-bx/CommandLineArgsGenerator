@@ -55,6 +55,9 @@ namespace CommandLineArgsGenerator
                 ctx.PushGlobal(sc);
                 sc.Import(model, x => true , x => x.Name);
                 ctx.MemberRenamer = x => x.Name;
+                var logPath = context.GetMSBuildProperty("LogGeneratedParser");
+                if(logPath is not null)
+                    File.WriteAllText(logPath, template.Render(ctx));
                 context.AddSource("EntryPoint.cs", template.Render(ctx));
             }
 
