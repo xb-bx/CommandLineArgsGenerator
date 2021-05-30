@@ -35,6 +35,8 @@ namespace CommandLineArgsGenerator
             {
                 var semanticModel = context.Compilation.GetSemanticModel(receiver.Root.Class.SyntaxTree);
                 var cmds = GetCommands(receiver.Root.Class, semanticModel, out ICommandInfo? defaultCommand);
+                var rootDoc = GetXmlDocumentation(receiver.Root.Class);
+                receiver.Root.HelpText = rootDoc.Descendants("summary").FirstOrDefault()?.Value.Trim();
                 receiver.Root.Children = cmds;
                 receiver.Root.Default = defaultCommand; 
                 var model = new
@@ -53,7 +55,6 @@ namespace CommandLineArgsGenerator
                 ctx.PushGlobal(sc);
                 sc.Import(model, x => true , x => x.Name);
                 ctx.MemberRenamer = x => x.Name;
-                File.WriteAllText("D:\\ep.cs", template.Render(ctx));
                 context.AddSource("EntryPoint.cs", template.Render(ctx));
             }
 

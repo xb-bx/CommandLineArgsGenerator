@@ -204,7 +204,7 @@ namespace {{ Namespace }}
                 {{ for cmd in Root.Children; Help(cmd); end }} 
                 {{ if Root.Default; Help(Root.Default); end }}
                 default: 
-                    return "Usage: <command> <parameters> [options]\ncommands:\n\t(default){{~if Root.Default; ShortHelp(Root.Default); end ~}}\n{{~for cmd in Root.Children~}}\t{{ShortHelp(cmd)}}\n{{~ end ~}}";
+                    return "{{~ if Root.HelpText ~}}{{~ Root.HelpText ~}}\n{{~ end ~}}Usage: <command> <parameters> [options]\ncommands:\n\t(default){{~if Root.Default; ShortHelp(Root.Default); end ~}}\n{{~for cmd in Root.Children~}}\t{{ShortHelp(cmd)}}\n{{~ end ~}}";
             }
 		}
 		private static void Error(string error)
