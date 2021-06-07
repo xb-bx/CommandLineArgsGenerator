@@ -45,7 +45,7 @@ There will be one command 'file' with two subcommands 'create' and 'delete'
 ### Tasks
 Methods that returns `Task` or `Task<T>` are supported
 ### Default commands
-You can mark method with attribute `Default`
+You can mark method or class with attribute `Default`
 ## Type conversation
 ***Supported any type*** that has static method Parse(string) or constructor with one argument of type string.
 For example, int or FileInfo.
