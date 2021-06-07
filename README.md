@@ -77,6 +77,12 @@ public class PointConverter : IArgumentConverter<Point>
 Because of absence of reflection you can compile your app using [NativeAOT](https://github.com/dotnet/runtimelab/tree/feature/NativeAOT/) to make it more faster
 ### Arrays
 **Arrays always will be as optionals**
+### If you want to checkout generated parser add the following to your .csproj:
+```xml
+<PropertyGroup>
+    <LogGeneratedParser>Path-to-parser</LogGeneratedParser>
+</PropertyGroup>
+```
 ## Install
 ```
 dotnet add package CommandLineArgsGenerator
