@@ -5,6 +5,17 @@
 ~}}
     "{{ command.HelpText }}\nsubcommands:\n{{~if command.Default ~}}\t(default){{ShortHelp(command.Default)}}\n{{ end }}{{ for cmd in command.Children }}\t{{ShortHelp(cmd)}}\n{{ end }} ";
 {{~ end ~}}
+{{~
+	func GetDefaultCommand(command)
+		if command.Default && command.Default.Parameters 
+			ret command.Default
+		else if command.Default
+			ret GetDefaultCommand(command.Default)
+		else
+			ret null
+		end
+	end
+~}}
 {{~ func Help(command)
         if command.Children  
 ~}}
@@ -216,11 +227,22 @@ namespace {{ Namespace }}
 		}
 		public static void Main(string[] args)
 		{   
-            if(args.Length == 0)
+		
+            var segment = new ArraySegment<string>(args);
+			{{~ def = GetDefaultCommand(Root) ~}}
+			{{ if def && (array.size(def.Parameters) == 0) }}
+			if(args.Length == 0)
+			{
+				{{ def.NameInSourceCode }}(){{~ if def.IsTask ~}}.GetAwaiter().GetResult(){{ end }};
+				return;
+			}
+			{{ else }}
+			if(args.Length == 0)
             {
                 Console.WriteLine(GetHelp());
                 return;
             }
+			{{ end }}
             {{ for converter in Converters; $validName = converter.Key | string.replace "." "_" }}
                 var {{ $validName }} = new {{ converter.Key }}();
                 {{ for targetType in converter.Value }}
@@ -229,7 +251,6 @@ namespace {{ Namespace }}
                     {{ convs[targetType] = convName }}
                 {{ end }}
             {{ end }}  
-            var segment = new ArraySegment<string>(args);
             switch(segment[0])
             {
                 case "help":
