@@ -35,7 +35,9 @@ parameters:
 {{~ end ~}}
 {{~ if (command.Options | array.size) > 0 ~}}
 options:
-    {{ for opt in command.Options }} {{opt.Name}}{{ if opt.Alias }}|{{ opt.Alias }}{{ end }} (default = {{ opt.Default | Escape }}) - {{ opt.HelpText }} {{ end }}
+    {{~ for opt in command.Options ~}} 
+	{{opt.Name}}{{ if opt.Alias }}|{{ opt.Alias }}{{ end }} (default = {{ opt.Default | Escape }}) - {{ opt.HelpText }} 
+	{{~ end ~}}
 {{~ end ~}}
 ";      
         {{~ end ~}}
