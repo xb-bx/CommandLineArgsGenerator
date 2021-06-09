@@ -82,13 +82,13 @@ options:
 {{~ func GenerateCase(command, nestingLevel, isDefault = false) ~}}
 
 {{~ if isDefault ~}}
-case string {{ command.RawName }}:
+case string _{{ command.RawName }}:
 {{~ else ~}}
 case "{{ command.Name }}":
 {{~ end ~}}
 { 
     {{ if isDefault }}
-    if({{ command.RawName }} == "{{ command.Name }}")
+    if(_{{ command.RawName }} == "{{ command.Name }}")
     {
         segment = new ArraySegment<string>(args, segment.Offset+1, segment.Count - 1);
     }
