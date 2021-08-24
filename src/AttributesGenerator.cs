@@ -12,14 +12,17 @@ $@"
 using System;
 namespace {(context.SyntaxReceiver as NamespaceSyntaxReceiver)!.Namespace!} 
 {{
+	[AttributeUsage(AttributeTargets.Class)]
     public class AppAttribute : Attribute 
     {{
         
     }}
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class DefaultAttribute : Attribute 
     {{
         
     }}
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class IgnoreAttribute : Attribute 
     {{
         
