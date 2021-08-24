@@ -20,6 +20,7 @@ namespace CommandLineArgsGenerator
     {
         private static SymbolDisplayFormat typeFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
         private static readonly Template template;
+		private string defaultCulture = "";
         static ParserGenerator()
         {
             var asm = Assembly.GetExecutingAssembly();
@@ -33,6 +34,7 @@ namespace CommandLineArgsGenerator
             var receiver = context.SyntaxContextReceiver as ParserSyntaxReceiver; 
             if (receiver?.Root?.Class is not null && receiver.Namespace is not null)
             {
+				defaultCulture = context.GetMSBuildProperty("DefaultCulture") ?? "en-US";
                 var semanticModel = context.Compilation.GetSemanticModel(receiver.Root.Class.SyntaxTree);
                 var cmds = GetCommands(receiver.Root.Class, semanticModel, out ICommandInfo? defaultCommand);
                 var rootDoc = GetXmlDocumentation(receiver.Root.Class);
