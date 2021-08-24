@@ -81,7 +81,7 @@ options:
     {{ end }}
 {{~ end ~}}
 
-{{~ func GenerateCase(command, nestingLevel, isDefault = false) ~}}
+{{~ func GenerateCase(command, isDefault = false) ~}}
 
 {{~ if isDefault ~}}
 case string _{{ command.RawName }}:
@@ -105,10 +105,10 @@ case "{{ command.Name }}":
     }
     switch(segment[0])
     {
-        {{ for cmd in command.Children; GenerateCase(cmd, (isDefault ? nestingLevel : (nestingLevel + 1))); end }}
+        {{ for cmd in command.Children; GenerateCase(cmd); end }}
         {{~ 
         if command.Default
-            GenerateCase(command.Default,(nestingLevel + 1), true)
+            GenerateCase(command.Default, true)
         else 
         ~}}
         default: 
@@ -266,8 +266,8 @@ namespace {{ Namespace }}
                         Console.WriteLine(GetHelp(string.Join(" ", args.Skip(1))));
                     }
                     break;
-                {{ for cmd in Root.Children; GenerateCase(cmd, 1); end }}
-                {{ if Root.Default; GenerateCase(Root.Default, 1, true); end }}
+                {{ for cmd in Root.Children; GenerateCase(cmd); end }}
+                {{ if Root.Default; GenerateCase(Root.Default, true); end }}
             }
         }
 	}
