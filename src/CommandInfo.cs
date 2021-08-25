@@ -4,13 +4,9 @@ using System.Text;
 
 namespace CommandLineArgsGenerator
 {
-    public class CommandInfo : ICommandInfo
+    public class CommandInfo : CommandInfoBase
     {
-        public string Name { get; set; }
-        public string FullName { get; set; }
-        public string RawName { get; set; }
         public string NameInSourceCode { get; set; }
-        public string HelpText { get; set; }
         public ParameterInfo[] Parameters { get; set; }
         public OptionInfo[] Options { get; set; }
         public bool IsTask { get; set; }
