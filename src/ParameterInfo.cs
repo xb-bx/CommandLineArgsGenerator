@@ -10,7 +10,7 @@ namespace CommandLineArgsGenerator
         public string Name { get; set; }
         public string RawName { get; set; }
         public INamedTypeSymbol Type { get; set; }
-        public string HelpText { get; set; } 
+        public HelpText? HelpText { get; set; } 
         public string DisplayTypeName { get; set; }
 		public bool IsString => Type?.SpecialType == SpecialType.System_String;
 		public bool IsEnum => Type?.BaseType?.SpecialType == SpecialType.System_Enum;
