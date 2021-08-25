@@ -28,6 +28,7 @@ namespace CommandLineArgsGenerator
             using var reader = new System.IO.StreamReader(stream);
             template = Template.Parse(reader.ReadToEnd());
         }
+		
         public void Execute(GeneratorExecutionContext context)
         { 
             
@@ -35,29 +36,21 @@ namespace CommandLineArgsGenerator
             if (receiver?.Root?.Class is not null && receiver.Namespace is not null)
             {
 				defaultCulture = context.GetMSBuildProperty("DefaultCulture") ?? "en-US";
-                var semanticModel = context.Compilation.GetSemanticModel(receiver.Root.Class.SyntaxTree);
-                var cmds = GetCommands(receiver.Root.Class, semanticModel, out ICommandInfo? defaultCommand);
+                
+				var semanticModel = context.Compilation.GetSemanticModel(receiver.Root.Class.SyntaxTree);
+                var cmds = GetCommands(receiver.Root.Class, semanticModel, out CommandInfoBase? defaultCommand);
                 var rootDoc = GetXmlDocumentation(receiver.Root.Class);
-                receiver.Root.HelpText = rootDoc.Descendants("summary").FirstOrDefault()?.Value.Trim();
+                
+				var rh = rootDoc.Descendants("summary").FirstOrDefault();
+				if(rh is not null)
+				{
+					receiver.Root.HelpText = HelpText.FromXElement(rh, defaultCulture);
+				}
                 receiver.Root.Children = cmds;
                 receiver.Root.Default = defaultCommand; 
-                var model = new
-                    {
-                        Namespace = receiver.Namespace,
-                        Root = receiver.Root,
-                        Converters = receiver.Converters.GroupBy(x => x.Value).ToDictionary(t => t.Key, t => t.Select(r => r.Key).ToList())
-                    }; 
-                var sc = new ScriptObject();  
-                
-                sc.Import("HasMethod", (Func<ParameterInfo, string, int, bool>)((param,name,args) => param.HasMethod(name, args)));
-                sc.Import("HasCtor", (Func<ParameterInfo, IEnumerable<object>, bool>)((param, args) => param.HasCtor(args.Cast<string>().ToArray())));
-                sc.Import("JoinParamsAndOptions", (Func<CommandInfo, string>)((cmd) => string.Join(", ", cmd.Parameters.Concat(cmd.Options).Select(p => p.RawName))));
-                
-                var ctx = new TemplateContext();
-                ctx.PushGlobal(sc);
-                sc.Import(model, x => true , x => x.Name);
-                ctx.MemberRenamer = x => x.Name;
-				string ep = template.Render(ctx);
+				
+                var ctx = CreateContext(CreateParserTemplateModel(receiver));
+                string ep = template.Render(ctx);
                 var logPath = context.GetMSBuildProperty("LogGeneratedParser");
                 if(string.IsNullOrWhiteSpace(logPath) is not true)
                     File.WriteAllText(logPath, ep);
@@ -65,11 +58,38 @@ namespace CommandLineArgsGenerator
             }
 
         }
-
-        private List<ICommandInfo> GetCommands(ClassDeclarationSyntax @class, SemanticModel semanticModel, out ICommandInfo? defaultCommand, string? prevName = null)
+		private object CreateParserTemplateModel(ParserSyntaxReceiver receiver)
+		{ 
+			return new {
+					Namespace = receiver.Namespace,
+					Root = receiver.Root,
+					Converters = receiver.Converters.GroupBy(x => x.Value).ToDictionary(t => t.Key, t => t.Select(r => r.Key).ToList())
+				};
+		}
+		private object CreateHelpTextsModel(ParserSyntaxReceiver receiver)
+		{
+			return new {
+				Namespace = receiver.Namespace,
+				Root = receiver.Root,
+			};
+		}
+		private TemplateContext CreateContext(object model)
+		{
+			var sc = new ScriptObject();  
+			sc.Import("HasMethod", (Func<ParameterInfo, string, int, bool>)((param,name,args) => param.HasMethod(name, args)));
+			sc.Import("HasCtor", (Func<ParameterInfo, IEnumerable<object>, bool>)((param, args) => param.HasCtor(args.Cast<string>().ToArray())));
+			sc.Import("JoinParamsAndOptions", (Func<CommandInfo, string>)((cmd) => string.Join(", ", cmd.Parameters.Concat(cmd.Options).Select(p => p.RawName))));
+			
+			var ctx = new TemplateContext();
+			ctx.PushGlobal(sc);
+			sc.Import(model, x => true , x => x.Name);
+			ctx.MemberRenamer = x => x.Name;
+			return ctx;
+		}
+        private List<CommandInfoBase> GetCommands(ClassDeclarationSyntax @class, SemanticModel semanticModel, out CommandInfoBase? defaultCommand, string? prevName = null)
         {
             defaultCommand = null;
-            var cmds = new List<ICommandInfo>();
+            var cmds = new List<CommandInfoBase>();
             var methods = GetMethods(@class);
             foreach (var method in methods)
             {
@@ -78,6 +98,12 @@ namespace CommandLineArgsGenerator
                 var rawName = method.Identifier.ToString().Trim();
                 var paramAndOpts = GetParamsAndOptions(method, doc, semanticModel);
                 var name = TransformName(rawName); 
+				var h = doc.Descendants("summary").FirstOrDefault();
+				HelpText? help = null;
+				if(h is not null)
+				{
+					help = HelpText.FromXElement(h, defaultCulture);
+				}
                 var cmd = new CommandInfo
                     {
                         Name = name,
@@ -86,7 +112,7 @@ namespace CommandLineArgsGenerator
                         FullName = prevName is not null ? $"{prevName} {name}" : name,
                         Parameters = paramAndOpts.parameters,
                         Options = paramAndOpts.options,
-                        HelpText = doc.Descendants("summary").FirstOrDefault()?.Value.Trim(),
+                        HelpText = help,
                         IsTask = semanticModel.GetTypeInfo(method.ReturnType).Type?.Name == "Task",
                     };
                 if(method.AttributeLists.Any(x => x.Attributes.Any(attr => attr.Name.ToString() is "Default")))
@@ -105,12 +131,18 @@ namespace CommandLineArgsGenerator
                 var doc = GetXmlDocumentation(cl);
                 var rawName = cl.Identifier.ToString().Trim();
                 var name = TransformName(rawName);
-                var cmd = new RootCommand
+                var h = doc.Descendants("summary").FirstOrDefault();
+				HelpText? help = null;
+				if(h is not null)
+				{
+					help = HelpText.FromXElement(h, defaultCulture);
+				}
+				var cmd = new RootCommand
                 {
                     Name = name,
                     FullName = prevName is not null ? $"{prevName} {name}" : name,
-                    HelpText = doc.Descendants("summary").FirstOrDefault()?.Value.Trim(),
-                    Children = GetCommands(cl, semanticModel, out ICommandInfo? defCmd, name),
+                    HelpText = help,
+                    Children = GetCommands(cl, semanticModel, out CommandInfoBase? defCmd, name),
                     Class = cl,
                     RawName = rawName,
                     Default = defCmd
@@ -177,9 +209,11 @@ namespace CommandLineArgsGenerator
             var typeInfo = semanticModel.GetTypeInfo(param.Type!);
             var p = documentation.Descendants("param")
                 .FirstOrDefault(p => p.Attribute("name")?.Value == name);
-
-            string help = p
-                ?.Value.Trim() ?? "";
+			HelpText? help = null;
+			if(p is not null)
+			{
+				help = HelpText.FromXElement(p,defaultCulture);
+			}
 
             var type = (typeInfo.Type);
             string displayTypeName = typeInfo.Type!.ToDisplayString(typeFormat);
