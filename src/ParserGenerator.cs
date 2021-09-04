@@ -19,15 +19,22 @@ namespace CommandLineArgsGenerator
     public class ParserGenerator : ISourceGenerator
     {
         private static SymbolDisplayFormat typeFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
-        private static readonly Template template;
-		private string defaultCulture = "";
+        private static readonly Template parserTemplate, helpTextsTemplate;
+		private string defaultLanguage = "";
         static ParserGenerator()
         {
             var asm = Assembly.GetExecutingAssembly();
-            using var stream = asm.GetManifestResourceStream(asm.GetManifestResourceNames().FirstOrDefault(x => x.EndsWith(".template")));
-            using var reader = new System.IO.StreamReader(stream);
-            template = Template.Parse(reader.ReadToEnd());
-        }
+			var manifestNames = asm.GetManifestResourceNames();
+			foreach(string name in manifestNames)
+			{
+				using var stream = asm.GetManifestResourceStream(name);
+				using var reader = new System.IO.StreamReader(stream);
+				if(name.EndsWith("Parser.template"))
+					parserTemplate = Template.Parse(reader.ReadToEnd());
+				else if(name.EndsWith("HelpTexts.template"))
+					helpTextsTemplate = Template.Parse(reader.ReadToEnd());
+			}
+		}
 		
         public void Execute(GeneratorExecutionContext context)
         { 
@@ -35,8 +42,8 @@ namespace CommandLineArgsGenerator
             var receiver = context.SyntaxContextReceiver as ParserSyntaxReceiver; 
             if (receiver?.Root?.Class is not null && receiver.Namespace is not null)
             {
-				defaultCulture = context.GetMSBuildProperty("DefaultCulture") ?? "en-US";
-                
+				defaultLanguage = context.GetMSBuildProperty("DefaultLanguage");
+                defaultLanguage = string.IsNullOrWhiteSpace(defaultLanguage) ? "en" : defaultLanguage;
 				var semanticModel = context.Compilation.GetSemanticModel(receiver.Root.Class.SyntaxTree);
                 var cmds = GetCommands(receiver.Root.Class, semanticModel, out CommandInfoBase? defaultCommand);
                 var rootDoc = GetXmlDocumentation(receiver.Root.Class);
@@ -44,18 +51,24 @@ namespace CommandLineArgsGenerator
 				var rh = rootDoc.Descendants("summary").FirstOrDefault();
 				if(rh is not null)
 				{
-					receiver.Root.HelpText = HelpText.FromXElement(rh, defaultCulture);
+					receiver.Root.HelpText = HelpText.FromXElement(rh, defaultLanguage);
 				}
                 receiver.Root.Children = cmds;
                 receiver.Root.Default = defaultCommand; 
 				
                 var ctx = CreateContext(CreateParserTemplateModel(receiver));
-                string ep = template.Render(ctx);
-                var logPath = context.GetMSBuildProperty("LogGeneratedParser");
+                string ep = parserTemplate.Render(ctx);
+				ctx = CreateContext(CreateHelpTextsModel(receiver));
+				string ht = helpTextsTemplate.Render(ctx);
+                var logPath = context.GetMSBuildProperty("LogGeneratedParser"); 
                 if(string.IsNullOrWhiteSpace(logPath) is not true)
-                    File.WriteAllText(logPath, ep);
+				{
+					File.WriteAllText(Path.Combine(logPath, "EntryPoint.cs"), ep);
+					File.WriteAllText(Path.Combine(logPath, "HelpTexts.cs"), ht); 
+				}
                 context.AddSource("EntryPoint.cs", ep);
-            }
+                context.AddSource("HelpTexts.cs", ht);
+			}
 
         }
 		private object CreateParserTemplateModel(ParserSyntaxReceiver receiver)
@@ -71,6 +84,7 @@ namespace CommandLineArgsGenerator
 			return new {
 				Namespace = receiver.Namespace,
 				Root = receiver.Root,
+				DefaultLanguage = defaultLanguage,
 			};
 		}
 		private TemplateContext CreateContext(object model)
@@ -102,7 +116,7 @@ namespace CommandLineArgsGenerator
 				HelpText? help = null;
 				if(h is not null)
 				{
-					help = HelpText.FromXElement(h, defaultCulture);
+					help = HelpText.FromXElement(h, defaultLanguage);
 				}
                 var cmd = new CommandInfo
                     {
@@ -135,7 +149,7 @@ namespace CommandLineArgsGenerator
 				HelpText? help = null;
 				if(h is not null)
 				{
-					help = HelpText.FromXElement(h, defaultCulture);
+					help = HelpText.FromXElement(h, defaultLanguage);
 				}
 				var cmd = new RootCommand
                 {
@@ -212,7 +226,7 @@ namespace CommandLineArgsGenerator
 			HelpText? help = null;
 			if(p is not null)
 			{
-				help = HelpText.FromXElement(p,defaultCulture);
+				help = HelpText.FromXElement(p,defaultLanguage);
 			}
 
             var type = (typeInfo.Type);

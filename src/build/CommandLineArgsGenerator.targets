@@ -2,6 +2,6 @@
 <Project>
     <ItemGroup>
         <CompilerVisibleProperty Include="LogGeneratedParser"/>
-        <CompilerVisibleProperty Include="DefaultCulture"/>
+        <CompilerVisibleProperty Include="DefaultLanguage"/>
     </ItemGroup>
 </Project>
