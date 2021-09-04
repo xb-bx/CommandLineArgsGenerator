@@ -5,6 +5,16 @@
         public string Name { get; set; }
         public HelpText? HelpText { get; set; }
         public string RawName { get; set; }
-        public string FullName { get; set; }
+		private string fullName;
+        public string FullName 
+		{ 
+			get => fullName;  
+			set {
+				fullName = value;
+				UnderscoredName = fullName.Replace(" ", "_");
+			}
+		}
+		public string UnderscoredName { get; set; }
+		
 	}
 } 
