@@ -14,18 +14,18 @@ namespace CommandLineArgsGenerator
             get
             {
 				texts ??= new();
-                if (texts.ContainsKey(culture))
-                    return texts[culture];
+                if (texts.ContainsKey(lang))
+                    return texts[lang];
                 else
                     return null;
             }
             set
             {
 				texts ??= new();
-                if (texts.ContainsKey(culture))
-                    texts[culture] = value!;
+                if (texts.ContainsKey(lang))
+                    texts[lang] = value!;
                 else
-                    texts.Add(culture, value!);
+                    texts.Add(lang, value!);
             }
         }
         public static HelpText FromXElement(XElement elem, string defaultLanguage)
@@ -35,7 +35,7 @@ namespace CommandLineArgsGenerator
             {
                 if (node.NodeType == XmlNodeType.Text)
                 {
-                    help[defaultCulture] = (node as XText).Value.Trim();
+                    help[defaultLanguage] = (node as XText).Value.Trim();
                 }
                 else
                 {
