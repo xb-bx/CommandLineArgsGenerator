@@ -7,8 +7,7 @@ namespace CommandLineArgsGenerator
     public struct HelpText
     {
         private Dictionary<string, string> texts;
-        public Dictionary<string, string> Texts => texts;
-        public int Count => texts.Count;
+        public Dictionary<string, string> Texts => texts ??= new(); 
         public string? this[string lang]
         {
             get

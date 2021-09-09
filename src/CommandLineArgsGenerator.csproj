@@ -1,10 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <LangVersion>latest</LangVersion>
         <TargetFramework>netstandard2.0</TargetFramework>
         <Nullable>enable</Nullable>
-        
-        <Authors>Dotnet-And-Happiness</Authors>
+
+        <Authors>xb-bx</Authors>
         <DevelopmentDependency>True</DevelopmentDependency>
         <NoWarn>$(NoWarn);NU5128</NoWarn>
         <IncludeBuildOutput>false</IncludeBuildOutput>
@@ -21,13 +21,14 @@
     </PropertyGroup>
     <ItemGroup>
         <EmbeddedResource Include="Parser.template"/>
+		<EmbeddedResource Include="HelpTexts.template"/>
     </ItemGroup>
     <ItemGroup>
         <Content Include="build\*.*">
           <Pack>true</Pack>
           <PackagePath>build\</PackagePath>
           <PackageCopyToOutput>true</PackageCopyToOutput>
-        </Content> 
+        </Content>
     </ItemGroup>
     <ItemGroup>
         <PackageReference PrivateAssets="all" Include="Microsoft.CSharp" Version="4.5.0"/>
@@ -43,5 +44,5 @@
     </ItemGroup>
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
-    </ItemGroup> 
+    </ItemGroup>
 </Project>

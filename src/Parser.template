@@ -1,5 +1,5 @@
-﻿{{ convs = {} }}
-{{~ func ShortHelp(cmd) ~}}{{ cmd.Name }} - {{ cmd.HelpText }}{{~ end~}}
+{{ convs = {} }}
+{{~ func ShortHelp(cmd) ~}}{{ cmd.Name }} - { HelpTexts.{{ cmd.UnderscoredName }} }{{~ end~}}
 {{~
     func GetCmdHelp(command)
 ~}}
@@ -7,7 +7,7 @@
 {{~ end ~}}
 {{~
 	func GetDefaultCommand(command)
-		if command.Default && command.Default.Parameters 
+		if command.Default && command.Default.Parameters
 			ret command.Default
 		else if command.Default
 			ret GetDefaultCommand(command.Default)
@@ -17,50 +17,36 @@
 	end
 ~}}
 {{~ func Help(command)
-        if command.Children  
+        if command.Children
 ~}}
             case "{{ command.FullName }}":
-                return {{ GetCmdHelp(command) }}; 
+                return HelpTexts.Full_{{command.UnderscoredName}};
             {{ for cmd in command.Children; Help(cmd); end }}
         {{ if command.Default; Help(command.Default); end }}
         {{~ else ~}}
             case "{{ command.FullName }}":
-                return 
-@"{{command.HelpText}}
-{{~ if (command.Parameters | array.size) > 0 ~}}
-parameters:
-    {{~ for param in command.Parameters ~}} 
-    {{param.Name}} - {{ param.HelpText }} 
-    {{~ end ~}}
-{{~ end ~}}
-{{~ if (command.Options | array.size) > 0 ~}}
-options:
-    {{~ for opt in command.Options ~}} 
-	{{opt.Name}}{{ if opt.Alias }}|{{ opt.Alias }}{{ end }} (default = {{ opt.Default | Escape }}) - {{ opt.HelpText }} 
-	{{~ end ~}}
-{{~ end ~}}
-";      
+                return HelpTexts.Full_{{command.UnderscoredName}};
         {{~ end ~}}
-        
+
 {{~ end ~}}
 {{~
     func Escape(str)
         ret str | string.replace "\"" "\"\""
     end
  ~}}
- 
+
 {{~ func GenerateConverter(param, valueToParse) ~}}
     {{ if convs | object.has_key param.DisplayTypeName }}
         {{ param.RawName }} = {{ convs[param.DisplayTypeName]}}.Convert({{ valueToParse }});
     {{ else if param.IsString }}
         {{ param.RawName }} = {{ valueToParse }};
     {{ else if param.IsEnum }}
-        {{ param.RawName }} = Enum.Parse<{{ param.DisplayTypeName }}>({{ valueToParse }}, true); 
+        {{ param.RawName }} = Enum.Parse<{{ param.DisplayTypeName }}>({{ valueToParse }}, true);
     {{ else if HasMethod(param, "Parse", 1)}}
         {{ param.RawName }} = {{ param.DisplayTypeName}}.Parse({{ valueToParse}});
     {{ else if HasCtor(param, ["string"])}}
         {{ param.RawName }} = new {{ param.DisplayTypeName}}({{ valueToParse}});
-    {{ end }} 
+    {{ end }}
 {{~ end ~}}
 {{~ func GenerateOptionConverter(option) ~}}
     {{ valueToParse = option.RawName + "Raw" }}
@@ -70,12 +56,12 @@ options:
         {{ else if option.IsString }}
             {{ option.RawName }} = {{ valueToParse }}.ToArray();
         {{ else if option.IsEnum }}
-            {{ option.RawName }} = {{ valueToParse }}.Select(o => Enum.Parse<{{option.DisplayTypeName}}>(o, true)).ToArray(); 
+            {{ option.RawName }} = {{ valueToParse }}.Select(o => Enum.Parse<{{option.DisplayTypeName}}>(o, true)).ToArray();
         {{ else if HasMethod(option, "Parse", 1)}}
             {{ option.RawName }} = {{ valueToParse }}.Select(o => {{ option.DisplayTypeName}}.Parse(o)).ToArray();
         {{ else if HasCtor(option, ["string"])}}
             {{ option.RawName }} = {{ valueToParse }}.Select(o => new {{ option.DisplayTypeName}}(o)).ToArray();
-        {{ end }} 
+        {{ end }}
     {{ else }}
         {{ GenerateConverter(option, option.RawName + "Raw") }}
     {{ end }}
@@ -88,7 +74,7 @@ case string _{{ command.RawName }}:
 {{~ else ~}}
 case "{{ command.Name }}":
 {{~ end ~}}
-{ 
+{
     {{ if isDefault }}
     if(_{{ command.RawName }} == "{{ command.Name }}")
     {
@@ -106,12 +92,12 @@ case "{{ command.Name }}":
     switch(segment[0])
     {
         {{ for cmd in command.Children; GenerateCase(cmd); end }}
-        {{~ 
+        {{~
         if command.Default
             GenerateCase(command.Default, true)
-        else 
+        else
         ~}}
-        default: 
+        default:
             Console.WriteLine(GetHelp());
             Error("Unknown command");
             break;
@@ -124,15 +110,15 @@ case "{{ command.Name }}":
     }
     {{ if (command.Parameters | array.size) > 0 }}
         {{ for parameter in command.Parameters }}
-            {{ parameter.DisplayTypeName }} {{ parameter.RawName }} = default; 
-            try 
+            {{ parameter.DisplayTypeName }} {{ parameter.RawName }} = default;
+            try
             {
                 {{GenerateConverter(parameter, "segment[" + (for.index) + "]") }}
             }
             catch
             {
                 Error("Cannot parse parameter {{parameter.Name}}");
-            } 
+            }
         {{ end }}
     {{ end }}
     {{ if (command.Options | array.size) > 0 }}
@@ -170,8 +156,8 @@ case "{{ command.Name }}":
                         {{ if option.Default == "true" }}
                         {{ option.RawName }}Raw = "false";
                         {{ else }}
-                        {{ option.RawName }}Raw = "true"; 
-                        {{ end }} 
+                        {{ option.RawName }}Raw = "true";
+                        {{ end }}
                     }
                     {{ else }}
                         {{ option.RawName }}Raw = segment[i++];
@@ -202,23 +188,23 @@ case "{{ command.Name }}":
     {{ end }}
     break;
 }
-{{~ end ~}} 
+{{~ end ~}}
 #nullable disable
 using System;
 using System.Linq;
 using System.Collections.Generic;
 namespace {{ Namespace }}
 {
-	public class EntryPoint 
+	public class EntryPoint
 	{
 		public static string GetHelp(string cmdName = null)
 		{
 			switch(cmdName)
-			{ 
-                {{ for cmd in Root.Children; Help(cmd); end }} 
+			{
+                {{ for cmd in Root.Children; Help(cmd); end }}
                 {{ if Root.Default; Help(Root.Default); end }}
-                default: 
-                    return "{{~ if Root.HelpText ~}}{{~ Root.HelpText ~}}\n{{~ end ~}}Usage: <command> <parameters> [options]\ncommands:\n\t(default){{~if Root.Default; ShortHelp(Root.Default); end ~}}\n{{~for cmd in Root.Children~}}\t{{ShortHelp(cmd)}}\n{{~ end ~}}";
+                default:
+                    return $"{{~ if Root.HelpText ~}}{{~ Root.HelpText ~}}\n{{~ end ~}}Usage: <command> <parameters> [options]\ncommands:\n{{~if Root.Default ~}}\t(default){{~ ShortHelp(Root.Default) ~}}\n{{~ end ~}}{{~for cmd in Root.Children~}}\t{{ShortHelp(cmd)}}\n{{~ end ~}}";
             }
 		}
 		private static void Error(string error)
@@ -229,8 +215,8 @@ namespace {{ Namespace }}
 			Environment.Exit(0);
 		}
 		public static void Main(string[] args)
-		{   
-		
+		{
+
             var segment = new ArraySegment<string>(args);
 			{{~ def = GetDefaultCommand(Root) ~}}
 			{{ if def && (array.size(def.Parameters) == 0) }}
@@ -253,7 +239,7 @@ namespace {{ Namespace }}
                     IArgumentConverter<{{targetType}}> {{ convName }} = {{ $validName }};
                     {{ convs[targetType] = convName }}
                 {{ end }}
-            {{ end }}  
+            {{ end }}
             switch(segment[0])
             {
                 case "help":

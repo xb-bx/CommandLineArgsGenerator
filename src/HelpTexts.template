@@ -1,0 +1,77 @@
+{{~ func gen_param(p,cmd) ~}}
+    public static string {{cmd.UnderscoredName}}_{{ p.RawName }} 
+    {
+        get 
+        {
+            {{ if p.HelpText?.Texts && (p.HelpText.Texts | array.size == 1) }}
+            return "{{(p.HelpText.Texts | array.first).Value}}";
+            {{ else if !p.HelpText?.Texts || (p.HelpText.Texts | array.size == 0) }}
+            return "";
+            {{ else }}
+            switch(CultureInfo.CurrentCulture.TwoLetterISOLanguageName)
+            { 
+                {{ for $cc in p.HelpText.Texts }} 
+                case "{{$cc.Key}}": return "{{$cc.Value}}";
+                {{ end }}
+                default:
+                    return "{{p.HelpText[DefaultLanguage]}}"; 
+            }
+            {{ end }}
+        }
+    }
+{{~ end ~}}
+{{~ func gen(cmd) ~}}
+	{{~ if cmd.Children ~}}
+		{{~ for c in cmd.Children; gen(c); end ~}}
+        {{~ if cmd.Default; gen(cmd.Default); end ~}}
+	{{~ end ~}}
+		public static string {{ cmd.UnderscoredName }}
+		{
+			get 
+			{
+                {{ if cmd.HelpText?.Texts && (cmd.HelpText.Texts | array.size == 1) }}
+                return "{{(cmd.HelpText.Texts | array.first).Value}}";
+                {{ else if !cmd.HelpText?.Texts || (cmd.HelpText.Texts | array.size == 0)}}
+                return "";
+                {{ else }}
+                switch(CultureInfo.CurrentCulture.TwoLetterISOLanguageName)
+				{ 
+					{{ for $cc in cmd.HelpText.Texts }} 
+					case "{{$cc.Key}}": return "{{$cc.Value}}";
+					{{ end }}
+					default:
+						return "{{cmd.HelpText[DefaultLanguage]}}"; 
+				}
+                {{ end }}
+            }
+
+		} 
+        {{ for param in cmd.Parameters; gen_param(param, cmd); end }}
+        {{ for opt in cmd.Options; gen_param(opt, cmd); end }}
+{{~ end ~}}
+{{~ func gen_full(cmd) ~}}
+    {{ if cmd.Children; for c in cmd.Children; gen_full(c); end; end;}}
+    {{ if cmd.Default; gen_full(cmd.Default); end }}
+    public static string Full_{{cmd.UnderscoredName}} 
+    {
+        get 
+        {
+            {{ if cmd.Children }}
+            return $"{ {{cmd.UnderscoredName}} }\nsubcommands:\n{{~ if cmd.Default; "\\t(default)" + cmd.Default.Name + " - {" + cmd.Default.UnderscoredName + "}\\n"; end ~}}{{~ for c in cmd.Children; "\\t" + c.Name + " - {" + c.UnderscoredName + "}\\n" ; end ~}}";
+            {{ else }}
+            return $"{ {{cmd.UnderscoredName}} }\n{{~ if (cmd.Parameters | array.size) > 0 ~}}parameters:\n{{~end~}}{{for param in cmd.Parameters; "\\t" + param.Name + " - {" + cmd.UnderscoredName + "_" + param.RawName + "}"; end}}{{~ if (cmd.Options | array.size) > 0 ~}}\noptions:\n{{~ end ~}}{{for opt in cmd.Options; "\\t" + opt.Name + (opt.Default == null ? "(default =)" + opt.Default : "") + " - {" + cmd.UnderscoredName + "_" + opt.RawName + "}"; end}}";
+            {{ end }}
+        }
+    }
+{{~ end ~}} 
+using System.Globalization;
+namespace {{ Namespace }}
+{
+	public class HelpTexts
+	{
+		{{ for cmd in Root.Children; gen(cmd); end}} 
+		{{ for cmd in Root.Children; gen_full(cmd); end}} 
+        {{ if Root.Default; gen(Root.Default); end }}
+        {{ if Root.Default; gen_full(Root.Default); end }}
+    }
+}
