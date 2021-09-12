@@ -20,8 +20,7 @@
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     </PropertyGroup>
     <ItemGroup>
-        <EmbeddedResource Include="Parser.template"/>
-		<EmbeddedResource Include="HelpTexts.template"/>
+        <EmbeddedResource Include="templates\*.*"/> 
     </ItemGroup>
     <ItemGroup>
         <Content Include="build\*.*">

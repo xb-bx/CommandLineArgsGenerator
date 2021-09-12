@@ -41,7 +41,7 @@
     {{ else if param.IsString }}
         {{ param.RawName }} = {{ valueToParse }};
     {{ else if param.IsEnum }}
-        {{ param.RawName }} = Enum.Parse<{{ param.DisplayTypeName }}>({{ valueToParse }}, true);
+        {{ param.RawName }} = EnumParser.Parse_{{ param.UnderscoredTypeName }}({{ valueToParse }});
     {{ else if HasMethod(param, "Parse", 1)}}
         {{ param.RawName }} = {{ param.DisplayTypeName}}.Parse({{ valueToParse}});
     {{ else if HasCtor(param, ["string"])}}
@@ -56,7 +56,7 @@
         {{ else if option.IsString }}
             {{ option.RawName }} = {{ valueToParse }}.ToArray();
         {{ else if option.IsEnum }}
-            {{ option.RawName }} = {{ valueToParse }}.Select(o => Enum.Parse<{{option.DisplayTypeName}}>(o, true)).ToArray();
+            {{ option.RawName }} = {{ valueToParse }}.Select(o => EnumParser.Parse_{{option.UnderscoredTypeName}}(o)).ToArray();
         {{ else if HasMethod(option, "Parse", 1)}}
             {{ option.RawName }} = {{ valueToParse }}.Select(o => {{ option.DisplayTypeName}}.Parse(o)).ToArray();
         {{ else if HasCtor(option, ["string"])}}

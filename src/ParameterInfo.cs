@@ -11,7 +11,21 @@ namespace CommandLineArgsGenerator
         public string RawName { get; set; }
         public INamedTypeSymbol Type { get; set; }
         public HelpText? HelpText { get; set; } 
-        public string DisplayTypeName { get; set; }
+        
+        private string displayTypeName;
+        public string DisplayTypeName 
+        { 
+            get 
+            { 
+                return displayTypeName;
+            } 
+            set 
+            {
+                displayTypeName = value;
+                UnderscoredTypeName = displayTypeName.Replace('.', '_');
+            } 
+        }
+        public string UnderscoredTypeName { get; set; }
 		public bool IsString => Type?.SpecialType == SpecialType.System_String;
 		public bool IsEnum => Type?.BaseType?.SpecialType == SpecialType.System_Enum;
 

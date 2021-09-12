@@ -19,20 +19,28 @@ namespace CommandLineArgsGenerator
     public class ParserGenerator : ISourceGenerator
     {
         private static SymbolDisplayFormat typeFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
-        private static readonly Template parserTemplate, helpTextsTemplate;
+        private static readonly Template parserTemplate, helpTextsTemplate, enumParserTemplate;
 		private string defaultLanguage = "";
         static ParserGenerator()
         {
             var asm = Assembly.GetExecutingAssembly();
 			var manifestNames = asm.GetManifestResourceNames();
 			foreach(string name in manifestNames)
-			{
+			{ 
 				using var stream = asm.GetManifestResourceStream(name);
 				using var reader = new System.IO.StreamReader(stream);
-				if(name.EndsWith("Parser.template"))
-					parserTemplate = Template.Parse(reader.ReadToEnd());
-				else if(name.EndsWith("HelpTexts.template"))
-					helpTextsTemplate = Template.Parse(reader.ReadToEnd());
+                switch(name)
+                {
+                    case "CommandLineArgsGenerator.templates.EnumParser.template": 
+			    		enumParserTemplate = Template.Parse(reader.ReadToEnd());
+                        break;
+                    case "CommandLineArgsGenerator.templates.HelpTexts.template":
+                        helpTextsTemplate = Template.Parse(reader.ReadToEnd());
+                        break;
+                    case "CommandLineArgsGenerator.templates.Parser.template": 
+					    parserTemplate = Template.Parse(reader.ReadToEnd());
+                        break;
+                }
 			}
 		}
 		
@@ -56,20 +64,55 @@ namespace CommandLineArgsGenerator
                 receiver.Root.Children = cmds;
                 receiver.Root.Default = defaultCommand; 
 				
+                var enums = 
+                    GetEnumsInfo(defaultCommand is null ? cmds : cmds.Append(defaultCommand))
+                    .Select(x => (x.type.GetMembers().Select(y => y.Name).ToArray(), x.typeName,x.displayTypeName))
+                    .ToArray(); 
                 var ctx = CreateContext(CreateParserTemplateModel(receiver));
                 string ep = parserTemplate.Render(ctx);
 				ctx = CreateContext(CreateHelpTextsModel(receiver));
 				string ht = helpTextsTemplate.Render(ctx);
+                ctx = CreateContext(CreateEnumsModel(receiver.Namespace, enums));
+                string enp = enumParserTemplate.Render(ctx);
                 var logPath = context.GetMSBuildProperty("LogGeneratedParser"); 
                 if(string.IsNullOrWhiteSpace(logPath) is not true)
 				{
 					File.WriteAllText(Path.Combine(logPath, "EntryPoint.cs"), ep);
 					File.WriteAllText(Path.Combine(logPath, "HelpTexts.cs"), ht); 
-				}
+                    File.WriteAllText(Path.Combine(logPath, "EnumParser.cs"), enp);
+                }
                 context.AddSource("EntryPoint.cs", ep);
                 context.AddSource("HelpTexts.cs", ht);
+                context.AddSource("EnumParser.cs", enp);                
 			}
 
+        }
+        public IEnumerable<(INamedTypeSymbol type, string typeName, string displayTypeName)> GetEnumsInfo(IEnumerable<CommandInfoBase> commands)
+        {
+            var enums = 
+            commands
+                .OfType<CommandInfo>()
+                .SelectMany
+                (
+                    x => x.Parameters
+                            .Where(param => param.IsEnum)
+                            .Concat(
+                                x.Options.Where(option => option.IsEnum)
+                            )
+                )
+                .Select(p => (p.Type, p.UnderscoredTypeName, p.DisplayTypeName));
+            var ens =
+            commands
+                .OfType<RootCommand>()
+                .SelectMany(
+                    cmd => 
+                        cmd.Default is null ? 
+                        GetEnumsInfo(cmd.Children) : 
+                        GetEnumsInfo(cmd.Children.Append(cmd.Default))
+                    );
+            enums = enums.Concat(ens);
+            return enums;
+                
         }
 		private object CreateParserTemplateModel(ParserSyntaxReceiver receiver)
 		{ 
@@ -87,7 +130,14 @@ namespace CommandLineArgsGenerator
 				DefaultLanguage = defaultLanguage,
 			};
 		}
-		private TemplateContext CreateContext(object model)
+		public object CreateEnumsModel(string @namespace,(string[] values, string typeName, string displayTypeName)[] enums)
+        {
+            return new {
+                Namespace = @namespace,
+                EnumsInfo = enums
+            };
+        }
+        private TemplateContext CreateContext(object model)
 		{
 			var sc = new ScriptObject();  
 			sc.Import("HasMethod", (Func<ParameterInfo, string, int, bool>)((param,name,args) => param.HasMethod(name, args)));
