@@ -11,7 +11,7 @@
 			get => fullName;  
 			set {
 				fullName = value;
-				UnderscoredName = fullName.Replace(" ", "_");
+				UnderscoredName = fullName.Replace(" ", "_").Replace('-', '_');
 			}
 		}
 		public string UnderscoredName { get; set; }

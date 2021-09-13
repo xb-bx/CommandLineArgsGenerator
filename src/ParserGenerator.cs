@@ -340,6 +340,8 @@ namespace CommandLineArgsGenerator
         }
         private string TransformName(string name)
         {
+            if(name.All(char.IsUpper))
+                return name.ToLower();
             var sb = new StringBuilder();
             sb.Append(char.ToLower(name[0]));
             foreach (var item in name.AsSpan(1))
