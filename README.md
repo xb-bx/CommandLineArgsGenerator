@@ -77,12 +77,22 @@ public class PointConverter : IArgumentConverter<Point>
 Because of absence of reflection you can compile your app using [NativeAOT](https://github.com/dotnet/runtimelab/tree/feature/NativeAOT/) to make it more faster
 ### Arrays
 **Arrays always will be as optionals**
+### Localization
+You can use following constructions to get multi-language help texts:
+```xml
+<summary>
+    <en>Text in English</en>
+    <ru>Текст на русском</ru>
+</summary>
+```
+It depends on current culture's `TwoLetterISOLanguageName` property.
+Also you can specify default language by setting project's property `DefaultLanguage`(by default it's 'en')
 ### If you want to checkout generated parser add the following to your .csproj:
 ```xml
 <PropertyGroup>
-    <LogGeneratedParser>Path-to-parser</LogGeneratedParser>
+    <LogGeneratedParser>Path-to-parser-dir</LogGeneratedParser>
 </PropertyGroup>
-```
+``` 
 ## Install
 ```
 dotnet add package CommandLineArgsGenerator
