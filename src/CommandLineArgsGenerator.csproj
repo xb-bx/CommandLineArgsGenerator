@@ -23,6 +23,9 @@
         <EmbeddedResource Include="templates\*.*"/> 
     </ItemGroup>
     <ItemGroup>
+        <Compile Remove="templates\*.cs"/>
+    </ItemGroup>
+    <ItemGroup>
         <Content Include="build\*.*">
           <Pack>true</Pack>
           <PackagePath>build\</PackagePath>
