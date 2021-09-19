@@ -35,7 +35,7 @@
     end
  ~}}
 
-{{~ func GenerateConverter(param, valueToParse) ~}}
+{{~ func GenerateConverter(param, valueToParse) ~}} 
     {{ if convs | object.has_key param.DisplayTypeName }}
         {{ param.RawName }} = {{ convs[param.DisplayTypeName]}}.Convert({{ valueToParse }});
     {{ else if param.IsString }}
@@ -115,6 +115,10 @@ case "{{ command.Name }}":
             {
                 {{GenerateConverter(parameter, "segment[" + (for.index) + "]") }}
             }
+            catch(ArgumentParsingException exception)
+            {
+                Error($"Cannot parse parameter {{parameter.Name}}\n{exception.Message}");
+            }
             catch
             {
                 Error("Cannot parse parameter {{parameter.Name}}");
@@ -177,6 +181,10 @@ case "{{ command.Name }}":
                 {
                     {{ GenerateOptionConverter(option) }}
                 }
+            }
+            catch(ArgumentParsingException exception)
+            {
+                Error($"Cannot parse option {{option.Name}}\n{exception.Message}");
             }
             catch
             {

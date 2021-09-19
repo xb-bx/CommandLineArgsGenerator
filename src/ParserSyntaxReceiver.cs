@@ -41,11 +41,7 @@ namespace CommandLineArgsGenerator
                         var target = (item.Type as INamedTypeSymbol)!.TypeArguments[0].ToDisplayString(typeFormat);
                         var name = GetFullName(cl);
                         if(Namespace is not null)
-                        {                            
-                            if(target.StartsWith(Namespace))
-                            {
-                                target = target.Substring(Namespace.Length + 1);
-                            }
+                        {              
                             if(name.StartsWith(Namespace))
                             {
                                 name = name.Substring(Namespace.Length + 1);
