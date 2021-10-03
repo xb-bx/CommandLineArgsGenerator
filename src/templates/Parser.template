@@ -44,6 +44,9 @@
         {{ param.RawName }} = EnumParser.Parse_{{ param.UnderscoredTypeName }}({{ valueToParse }});
     {{ else if HasMethod(param, "Parse", 1)}}
         {{ param.RawName }} = {{ param.DisplayTypeName}}.Parse({{ valueToParse}});
+    {{ else if HasMethod(param, "TryParse", 2)}}
+        if(!{{ param.DisplayTypeName }}.TryParse({{ valueToParse }}, out {{param.RawName}}))
+            throw new Exception();
     {{ else if HasCtor(param, ["string"])}}
         {{ param.RawName }} = new {{ param.DisplayTypeName}}({{ valueToParse}});
     {{ end }}
@@ -59,6 +62,12 @@
             {{ option.RawName }} = {{ valueToParse }}.Select(o => EnumParser.Parse_{{option.UnderscoredTypeName}}(o)).ToArray();
         {{ else if HasMethod(option, "Parse", 1)}}
             {{ option.RawName }} = {{ valueToParse }}.Select(o => {{ option.DisplayTypeName}}.Parse(o)).ToArray();
+        {{ else if HasMethod(option, "TryParse", 2)}}
+            {{option.RawName}} = {{ valueToParse }}.Select(o => {
+                if(!{{ option.DisplayTypeName }}.TryParse(o, out var val))
+                    throw new Exception();
+                return val;
+            }).ToArray();
         {{ else if HasCtor(option, ["string"])}}
             {{ option.RawName }} = {{ valueToParse }}.Select(o => new {{ option.DisplayTypeName}}(o)).ToArray();
         {{ end }}
