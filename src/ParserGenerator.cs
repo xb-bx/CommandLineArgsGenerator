@@ -18,6 +18,16 @@ namespace CommandLineArgsGenerator
     [Generator]
     public class ParserGenerator : ISourceGenerator
     {
+        public static readonly DiagnosticDescriptor GenerationError =
+            new DiagnosticDescriptor
+                (
+                "CLAG001",
+                "Error during generation",
+                "{0}",
+                "CommandLineArgsGenerator",
+                DiagnosticSeverity.Error,
+                true
+                );
         private static SymbolDisplayFormat typeFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
         private static readonly Template parserTemplate, helpTextsTemplate, enumParserTemplate;
 		private string defaultLanguage = "";
@@ -68,11 +78,12 @@ namespace CommandLineArgsGenerator
                     GetEnumsInfo(defaultCommand is null ? cmds : cmds.Append(defaultCommand))
                     .Select(x => (x.type.GetMembers().Select(y => y.Name).ToArray(), x.typeName,x.displayTypeName))
                     .ToArray(); 
-                var ctx = CreateContext(CreateParserTemplateModel(receiver));
+                Queue<string> errors = new();
+                var ctx = CreateContext(CreateParserTemplateModel(receiver), errors);
                 string ep = parserTemplate.Render(ctx);
-				ctx = CreateContext(CreateHelpTextsModel(receiver));
+				ctx = CreateContext(CreateHelpTextsModel(receiver), errors);
 				string ht = helpTextsTemplate.Render(ctx);
-                ctx = CreateContext(CreateEnumsModel(receiver.Namespace, enums));
+                ctx = CreateContext(CreateEnumsModel(receiver.Namespace, enums), errors);
                 string enp = enumParserTemplate.Render(ctx);
                 var logPath = context.GetMSBuildProperty("LogGeneratedParser"); 
                 if(string.IsNullOrWhiteSpace(logPath) is not true)
@@ -81,6 +92,8 @@ namespace CommandLineArgsGenerator
 					File.WriteAllText(Path.Combine(logPath, "HelpTexts.cs"), ht); 
                     File.WriteAllText(Path.Combine(logPath, "EnumParser.cs"), enp);
                 }
+                foreach(var item in errors)
+                    context.ReportDiagnostic(Diagnostic.Create(GenerationError, null, item));
                 context.AddSource("EntryPoint.cs", ep);
                 context.AddSource("HelpTexts.cs", ht);
                 context.AddSource("EnumParser.cs", enp);                
@@ -137,13 +150,13 @@ namespace CommandLineArgsGenerator
                 EnumsInfo = enums
             };
         }
-        private TemplateContext CreateContext(object model)
+        private TemplateContext CreateContext(object model, Queue<string> errors)
 		{
 			var sc = new ScriptObject();  
 			sc.Import("HasMethod", (Func<ParameterInfo, string, int, bool>)((param,name,args) => param.HasMethod(name, args)));
 			sc.Import("HasCtor", (Func<ParameterInfo, IEnumerable<object>, bool>)((param, args) => param.HasCtor(args.Cast<string>().ToArray())));
 			sc.Import("JoinParamsAndOptions", (Func<CommandInfo, string>)((cmd) => string.Join(", ", cmd.Parameters.Concat(cmd.Options).Select(p => p.RawName))));
-			
+			sc.Import("Error", (Action<string>)(error => errors.Enqueue(error)));
 			var ctx = new TemplateContext();
 			ctx.PushGlobal(sc);
 			sc.Import(model, x => true , x => x.Name);

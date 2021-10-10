@@ -49,6 +49,7 @@
             throw new Exception();
     {{ else if HasCtor(param, ["string"])}}
         {{ param.RawName }} = new {{ param.DisplayTypeName}}({{ valueToParse}});
+    {{ else; Error("Cannot create convertor for "+ param.DisplayTypeName) }}
     {{ end }}
 {{~ end ~}}
 {{~ func GenerateOptionConverter(option) ~}}
