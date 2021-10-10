@@ -46,7 +46,7 @@ There will be one command 'file' with two subcommands 'create' and 'delete'
 Methods that returns `Task` or `Task<T>` are supported
 ### Default commands
 You can mark method or class with attribute `Default`
-## Type conversation
+## Type convertion
 ***Supported any type*** that has static method Parse(string) or TryParse(string, out T) or with constructor with one argument of type string.
 For example, int or FileInfo.
 ### Custom type convertor
