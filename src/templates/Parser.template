@@ -71,6 +71,7 @@
             }).ToArray();
         {{ else if HasCtor(option, ["string"])}}
             {{ option.RawName }} = {{ valueToParse }}.Select(o => new {{ option.DisplayTypeName}}(o)).ToArray();
+        {{ else; Error("Cannot create convertor for "+ option.DisplayTypeName) }}
         {{ end }}
     {{ else }}
         {{ GenerateConverter(option, option.RawName + "Raw") }}
