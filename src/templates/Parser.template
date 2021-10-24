@@ -224,7 +224,7 @@ namespace {{ Namespace }}
                 {{ if Root.Default; Help(Root.Default); end }}
                 {{~ $cmdChars = (Root.Default != null) ? ['[', ']'] : [ '<', '>' ]~}}
                 default:
-                    return $"{{~ if Root.HelpText ~}}{{~ Root.HelpText ~}}\n{{~ end ~}}Usage: {{$cmdChars[0]}}command{{$cmdChars[1]}} <parameters> [options]\ncommands:\n{{~if Root.Default ~}}\t(default){{~ ShortHelp(Root.Default) ~}}\n{{~ end ~}}{{~for cmd in Root.Children~}}\t{{ShortHelp(cmd)}}\n{{~ end ~}}";
+                    return $"{{~ if Root.HelpText ~}}{ HelpTexts.Root }\n{{~ end ~}}Usage: {{$cmdChars[0]}}command{{$cmdChars[1]}} <parameters> [options]\ncommands:\n{{~if Root.Default ~}}\t(default){{~ ShortHelp(Root.Default) ~}}\n{{~ end ~}}{{~for cmd in Root.Children~}}\t{{ShortHelp(cmd)}}\n{{~ end ~}}";
             }
 		}
 		private static void Error(string error)

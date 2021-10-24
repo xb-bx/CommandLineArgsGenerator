@@ -20,12 +20,12 @@
         }
     }
 {{~ end ~}}
-{{~ func gen(cmd) ~}}
-	{{~ if cmd.Children ~}}
+{{~ func gen(cmd, genChildren = true, name = null) ~}}
+	{{~ if genChildren && cmd.Children ~}}
 		{{~ for c in cmd.Children; gen(c); end ~}}
         {{~ if cmd.Default; gen(cmd.Default); end ~}}
 	{{~ end ~}}
-		public static string {{ cmd.UnderscoredName }}
+		public static string {{ name ?? cmd.UnderscoredName }}
 		{
 			get 
 			{
@@ -72,6 +72,7 @@ namespace {{ Namespace }}
 		{{ for cmd in Root.Children; gen(cmd); end}} 
 		{{ for cmd in Root.Children; gen_full(cmd); end}} 
         {{ if Root.Default; gen(Root.Default); end }}
+        {{ gen(Root, false, "Root") }}
         {{ if Root.Default; gen_full(Root.Default); end }}
     }
 }
