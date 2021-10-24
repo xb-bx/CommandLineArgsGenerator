@@ -59,7 +59,7 @@
             {{ if cmd.Children }}
             return $"{ {{cmd.UnderscoredName}} }\nsubcommands:\n{{~ if cmd.Default; "\\t(default)" + cmd.Default.Name + " - {" + cmd.Default.UnderscoredName + "}\\n"; end ~}}{{~ for c in cmd.Children; "\\t" + c.Name + " - {" + c.UnderscoredName + "}\\n" ; end ~}}";
             {{ else }}
-            return $"{ {{cmd.UnderscoredName}} }\n{{~ if (cmd.Parameters | array.size) > 0 ~}}parameters:\n{{~end~}}{{for param in cmd.Parameters; "\\t" + param.Name + " - {" + cmd.UnderscoredName + "_" + param.RawName + "}"; end}}{{~ if (cmd.Options | array.size) > 0 ~}}\noptions:\n{{~ end ~}}{{for opt in cmd.Options; "\\t" + opt.Name + (opt.Default == null ? "(default =)" + opt.Default : "") + " - {" + cmd.UnderscoredName + "_" + opt.RawName + "}"; end}}";
+            return $"{ {{cmd.UnderscoredName}} }\n{{~ if (cmd.Parameters | array.size) > 0 ~}}parameters:\n{{for param in cmd.Parameters; "\\t" + param.Name + " - {" + cmd.UnderscoredName + "_" + param.RawName + "}\\n"; end; end}}{{~ if (cmd.Options | array.size) > 0 ~}}\noptions:\n{{for opt in cmd.Options; "\\t" + opt.Name + (opt.Default == null ? "(default =)" + opt.Default : "") + " - {" + cmd.UnderscoredName + "_" + opt.RawName + "}"; end; end}}";
             {{ end }}
         }
     }
