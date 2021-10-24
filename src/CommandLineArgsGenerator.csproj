@@ -11,9 +11,9 @@
         <PackageScribanIncludeSource>true</PackageScribanIncludeSource>
         <PackageTags>source generator</PackageTags>
         <Description>Source generator to generate command line args parser</Description>
-        <PackageProjectUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/Dotnet-And-Happiness/CommandLineArgsGenerator</RepositoryUrl>
-        <Version>0.7.2</Version>
+        <PackageProjectUrl>https://github.com/xb-bx/CommandLineArgsGenerator</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/xb-bx/CommandLineArgsGenerator</RepositoryUrl>
+        <Version>0.7.3</Version>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -42,7 +42,7 @@
         </PackageReference>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Scriban" Version="4.0.1" IncludeAssets="Build"/>
+        <PackageReference Include="Scriban" Version="4.0.2" IncludeAssets="Build"/>
     </ItemGroup>
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
