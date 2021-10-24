@@ -7,7 +7,7 @@ The parser will be generated at compile-time that means ***NO REFLECTION!***.
 public class Program
 {
   ///<summary>This will be help text for command</summary>
-  ///<param name="str">This will be help text for param</param>
+  ///<param name="str" alias="s">This will be help text for param.</param>
   public static void MyCoolCommand(string str, int num, FileInfo file, /* color is optional parameter */ ConsoleColor color = ConsoleColor.Grey)
   {
     Console.ForegroundColor = color
