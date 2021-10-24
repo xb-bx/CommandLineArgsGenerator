@@ -97,7 +97,7 @@ case "{{ command.Name }}":
     {{ if command.Children }}
     if(segment.Count < 1)
     {
-        Console.WriteLine(GetHelp());
+        Console.WriteLine(GetHelp("{{ command.FullName }}"));
         return;
     }
     switch(segment[0])
