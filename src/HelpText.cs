@@ -34,12 +34,12 @@ namespace CommandLineArgsGenerator
             {
                 if (node.NodeType == XmlNodeType.Text)
                 {
-                    help[defaultLanguage] = (node as XText).Value.Trim();
+                    help[defaultLanguage] = (node as XText).Value.Trim().Replace("\n", "\\n");
                 }
                 else
                 {
                     var el = node as XElement;
-                    help[el.Name.ToString()] = el.Value.Trim();
+                    help[el.Name.ToString()] = el.Value.Trim().Replace("\n", "\\n");
                 }
             }
             return help;
