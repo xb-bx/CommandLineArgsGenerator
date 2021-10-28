@@ -42,6 +42,11 @@ public class Program
 }
 ```
 There will be one command 'file' with two subcommands 'create' and 'delete'
+
+### Shell autocompletion
+Generator automaticaly creates command 'complete' that accepts cursor position and argument list. 
+Using this command you can create autocompletion script for your shell.
+
 ### Tasks
 Methods that returns `Task` or `Task<T>` are supported
 ### Default commands
