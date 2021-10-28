@@ -22,7 +22,6 @@ namespace CommandLineArgsGenerator
 				using var stream = asm.GetManifestResourceStream(cs);
 				using var reader = new System.IO.StreamReader(stream);
                 var content = reader.ReadToEnd().Replace("NAMESPACE", (context.SyntaxReceiver as NamespaceSyntaxReceiver)!.Namespace!);
-                System.IO.File.WriteAllText($"D:\\{fileName}",content); 
                 context.AddSource(fileName, content);
             }
         }

@@ -85,7 +85,6 @@ namespace {{ Namespace }}
         }
         public static void Complete(ArraySegment<string> args, int position)
         {
-            File.AppendAllText("D:\\log1.txt", $"{position} {string.Join(", ", args)}");
             bool isPosOutOfBound = IsPositionOutOfBounds(args, position);
             if(args.Count == 0)
                 Result("{{Join(Root.Children | array.map "Name", " ")}}");
