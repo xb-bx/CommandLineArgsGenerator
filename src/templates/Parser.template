@@ -272,6 +272,13 @@ namespace {{ Namespace }}
                         Console.WriteLine(GetHelp(string.Join(" ", args.Skip(1))));
                     }
                     break;
+                case "complete":
+                {
+                    int pos = int.Parse(segment[1]);
+                    segment = new ArraySegment<string>(args, segment.Offset + 2, segment.Count - 2);
+                    Completer.Complete(segment, pos);
+                    break;
+                }
                 {{ for cmd in Root.Children; GenerateCase(cmd); end }}
                 {{ if Root.Default; GenerateCase(Root.Default, true); end }}
             }

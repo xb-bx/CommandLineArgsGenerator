@@ -1,0 +1,101 @@
+{{~func GenCases(cmd)~}}
+    {{ if cmd.Children }} 
+        case "{{cmd.Name}}":
+        {
+            args = new ArraySegment<string>(args.Array, args.Offset + 1, args.Count - 1);
+            if(args.Count == 0 && isPosOutOfBound)
+                Result("{{cmd.Children | array.map "Name" | Join " "}}");
+            switch(args[0])
+            {
+                {{ for c in cmd.Children; GenCases(c); end }}
+                case string s: 
+                    Result((new[] { {{cmd.Children | array.map "Name" | array.each @(do; ret ("\"" + $0 + "\""); end) | Join ", "}} }).Where(x => x.Contains(s)) );
+                    break;
+            }
+            break;
+        }
+    {{ else }}
+        case "{{cmd.Name}}":
+        {
+            args = new ArraySegment<string>(args.Array, args.Offset + 1, args.Count - 1);
+            if(args.Count == 0)
+                Result("");
+            {{ if (cmd.Options | array.size) > 0 }}
+            switch(args[args.Count - 1])
+            {
+                {{ for opt in (cmd.Options | array.filter @(do; ret $0.IsEnum; end)) }}
+                
+                {{if opt.Alias }}
+                case "-{{opt.Alias}}":
+                {{end}}
+                case "--{{opt.Name}}":
+                {
+                    if(!isPosOutOfBound)
+                        break;
+                    Result("{{opt.Type | GetEnumMembers | Join " "}}");
+                    break;
+                }
+                {{ end }}
+                case string option when option.StartsWith("--"):
+                {
+                    Result(new string[] { {{ cmd.Options | array.map "Name" | array.each @(do; ret ("\"--" + $0 + "\""); end) | Join ", "}} }.Where(x => x.StartsWith(option)));
+                    break;
+                }
+                case string aliasOpt when aliasOpt.StartsWith("-"):
+                {
+                    Result(new string[] { {{ cmd.Options | array.filter @(do; ret $0.Alias; end) | array.map "Alias" | array.each @(do; ret ("\"-" + $0 + "\""); end) | Join ", "}} }.Where(x => x.StartsWith(aliasOpt)));
+                    break;
+                } 
+            }
+            {{ end }}
+            break;
+        }
+    {{ end }}
+    
+{{~ end ~}}
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
+namespace {{ Namespace }}
+{
+    public class Completer 
+    {
+        private static void Result(IEnumerable<string> res)
+        {
+            Console.WriteLine(string.Join(' ', res));
+            Environment.Exit(0);
+        }
+        private static void Result(string res)
+        {
+            Console.WriteLine(res);
+            Environment.Exit(0);
+        }
+        private static bool IsPositionOutOfBounds(ArraySegment<string> args, int pos)
+        {
+            int length = 0;
+            for(int i = 0; i < args.Count; i++)
+            {
+                var arg = args[i];
+                length += arg.Length + 1;
+                if(pos <= length)
+                    return false;
+            }
+            return true;
+        }
+        public static void Complete(ArraySegment<string> args, int position)
+        {
+            File.AppendAllText("D:\\log1.txt", $"{position} {string.Join(", ", args)}");
+            bool isPosOutOfBound = IsPositionOutOfBounds(args, position);
+            if(args.Count == 0)
+                Result("{{Join(Root.Children | array.map "Name", " ")}}");
+            switch(args[0])
+            {
+                {{for c in Root.Children; GenCases c; end}}
+                case string s: 
+                    Result((new[] { {{Root.Children | array.map "Name" | array.each @(do; ret ("\"" + $0 + "\""); end) | Join ", "}} }).Where(x => x.Contains(s)) );
+                    break;
+            }
+        }
+    }
+}

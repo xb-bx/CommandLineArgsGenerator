@@ -1,18 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0</TargetFramework>
-    <IlcDisableReflection>true</IlcDisableReflection>
-    <InvariantGlobalization>true</InvariantGlobalization>
-    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
-    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
-    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
-  </PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>  
+  </PropertyGroup> 
   <ItemGroup>
     <ProjectReference ReferenceOutputAssembly="false" OutputItemType="Analyzer" Include="..\..\src\CommandLineArgsGenerator.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="6.0.0-*" />
-  </ItemGroup>
+  </ItemGroup> 
 </Project>

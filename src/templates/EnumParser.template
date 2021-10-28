@@ -9,7 +9,7 @@ namespace {{ Namespace }}
             {
                 {{ for val in i.Item1 }}
                 {{ if val != ".ctor" }}
-                case "{{ val | string.downcase }}":
+                case "{{ val | TransformName }}":
                     return {{ i.Item3 }}.{{ val }};
                 {{ end }}
                 {{ end }}
