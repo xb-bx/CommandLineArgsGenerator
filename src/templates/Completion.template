@@ -8,9 +8,12 @@
             switch(args[0])
             {
                 {{ for c in cmd.Children; GenCases(c); end }}
+                
+                {{ if array.size(cmd.Children) > 0 }} 
                 case string s: 
-                    Result((new[] { {{cmd.Children | array.map "Name" | array.each @(do; ret ("\"" + $0 + "\""); end) | Join ", "}} }).Where(x => x.Contains(s)) );
+                    Result((new string[] { {{cmd.Children | array.map "Name" | array.each @(do; ret ("\"" + $0 + "\""); end) | Join ", "}} }).Where(x => x.Contains(s)) );
                     break;
+                {{ end }}
             }
             break;
         }
@@ -36,6 +39,8 @@
                     break;
                 }
                 {{ end }}
+                
+                {{ if array.size(cmd.Options) > 0 }} 
                 case string option when option.StartsWith("--"):
                 {
                     Result(new string[] { {{ cmd.Options | array.map "Name" | array.each @(do; ret ("\"--" + $0 + "\""); end) | Join ", "}} }.Where(x => x.StartsWith(option)));
@@ -46,6 +51,7 @@
                     Result(new string[] { {{ cmd.Options | array.filter @(do; ret $0.Alias; end) | array.map "Alias" | array.each @(do; ret ("\"-" + $0 + "\""); end) | Join ", "}} }.Where(x => x.StartsWith(aliasOpt)));
                     break;
                 } 
+                {{ end }}
             }
             {{ end }}
             break;
@@ -91,9 +97,11 @@ namespace {{ Namespace }}
             switch(args[0])
             {
                 {{for c in Root.Children; GenCases c; end}}
+                {{ if array.size(Root.Children) > 0 }} 
                 case string s: 
-                    Result((new[] { {{Root.Children | array.map "Name" | array.each @(do; ret ("\"" + $0 + "\""); end) | Join ", "}} }).Where(x => x.Contains(s)) );
+                    Result((new string[] { {{Root.Children | array.map "Name" | array.each @(do; ret ("\"" + $0 + "\""); end) | Join ", "}} }).Where(x => x.Contains(s)) );
                     break;
+                {{ end }}
             }
         }
     }
