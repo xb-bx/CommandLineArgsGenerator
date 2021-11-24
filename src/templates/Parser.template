@@ -94,6 +94,11 @@ case "{{ command.Name }}":
     {{ else }}
     segment = new ArraySegment<string>(args, segment.Offset+1, segment.Count - 1);
     {{ end }}
+    if(segment.FirstOrDefault() == "--help")
+    {
+        Console.WriteLine(GetHelp("{{ command.FullName }}"));
+        return;
+    }
     {{ if command.Children }}
     if(segment.Count < 1)
     {
