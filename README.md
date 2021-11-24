@@ -50,7 +50,7 @@ Using this command you can create autocompletion script for your shell.
 ### Tasks
 Methods that returns `Task` or `Task<T>` are supported
 ### Default commands
-You can mark method or class with attribute `Default`
+You can mark method or class with setting summary's attribute default to "true" 
 ## Type convertion
 ***Supported any type*** that has static method Parse(string) or TryParse(string, out T) or with constructor with one argument of type string.
 For example, int or FileInfo.
