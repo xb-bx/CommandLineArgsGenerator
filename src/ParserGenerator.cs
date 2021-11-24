@@ -203,7 +203,7 @@ namespace CommandLineArgsGenerator
                         HelpText = help,
                         IsTask = semanticModel.GetTypeInfo(method.ReturnType).Type?.Name == "Task",
                     };
-                if(method.AttributeLists.Any(x => x.Attributes.Any(attr => attr.Name.ToString() is "Default")))
+                if(defaultCommand is null && doc.Descendants("summary").FirstOrDefault()?.Attribute("default")?.Value == "true")
                 {
                     defaultCommand = cmd;
                 }
@@ -235,7 +235,7 @@ namespace CommandLineArgsGenerator
                     RawName = rawName,
                     Default = defCmd
                 };
-                if(cl.AttributeLists.Any(x => x.Attributes.Any(attr => attr.Name.ToString() is "Default")))
+                if(defaultCommand is null && doc.Descendants("summary").FirstOrDefault()?.Attribute("default")?.Value == "true")
                 {
                     defaultCommand = cmd;
                 }
