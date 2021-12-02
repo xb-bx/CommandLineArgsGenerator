@@ -61,15 +61,59 @@
     {
         get 
         {
+			var sb  = new StringBuilder();
             {{ if cmd.Children }}
-            return $"{ {{cmd.UnderscoredName}} }\nsubcommands:\n{{~ if cmd.Default; "\\t(default)" + cmd.Default.Name + " - {" + cmd.Default.UnderscoredName + "}\\n"; end ~}}{{~ for c in cmd.Children; "\\t" + c.Name + " - {" + c.UnderscoredName + "}\\n" ; end ~}}";
-            {{ else }}
-            return $"{ {{cmd.UnderscoredName}} }\n{{~ if (cmd.Parameters | array.size) > 0 ~}}parameters:\n{{for param in cmd.Parameters; "\\t" + param.Name + " - {" + cmd.UnderscoredName + "_" + param.RawName + "}\\n"; end; end}}{{~ if (cmd.Options | array.size) > 0 ~}}\noptions:\n{{for opt in cmd.Options; "\\t--" + opt.Name +  (opt.Alias == null ? "" : "|-" + opt.Alias) + (opt.Default != null ? "(default = " + escape(opt.Default) + ")" : "") + " - {" + cmd.UnderscoredName + "_" + opt.RawName + "}"; end; end}}";
-            {{ end }}
+				sb.AppendLine({{cmd.UnderscoredName}});
+				sb.AppendLine("subcommands:");
+				{{ if cmd.Default }}
+				sb.Append("\t(default)").Append("{{cmd.Default.Name}}");
+				if(!string.IsNullOrEmpty({{cmd.Default.UnderscoredName}}))
+				{
+					sb.Append(" - ").Append({{cmd.Default.UnderscoredName}});
+				}
+				sb.Append('\n');
+				{{ end }}
+				{{ for c in cmd.Children }}
+				sb.Append('\t').Append("{{c.Name}}");
+				if(!string.IsNullOrEmpty({{c.UnderscoredName}}))
+				{
+					sb.Append(" - ").Append({{c.UnderscoredName}});
+				}
+				sb.Append('\n');
+				{{ end }}
+			{{ else }}
+				sb.AppendLine({{cmd.UnderscoredName }});
+				{{ if (cmd.Parameters | array.size) > 0 }}
+					sb.AppendLine("parameters:");
+					{{ for param in cmd.Parameters }}
+						{{ name = cmd.UnderscoredName + "_" + param.RawName }}
+						sb.Append('\t').Append("{{ param.Name }}");
+						if(!string.IsNullOrEmpty({{name}}))
+						{
+							sb.Append(" - ").Append({{name}});
+						}
+						sb.Append('\n');
+					{{ end }}
+				{{ end }} 
+				{{ if (cmd.Options | array.size) > 0 }}
+					sb.AppendLine("options:");
+					{{ for option in cmd.Options}}
+						{{ name = cmd.UnderscoredName + "_" + option.RawName }}
+						sb.Append('\t'){{ if option.Alias; ".Append(\"-" + option.Alias + "|\")"; end}}.Append("--{{ option.Name }}");
+						if(!string.IsNullOrEmpty({{name}}))
+						{
+							sb.Append(" - ").Append({{name}});
+						}
+						sb.Append('\n');
+					{{ end }}
+				{{ end }} 
+			{{ end }}	
+			return sb.ToString();
         }
     }
 {{~ end ~}} 
 using System.Globalization;
+using System.Text;
 namespace {{ Namespace }}
 {
 	public class HelpTexts
