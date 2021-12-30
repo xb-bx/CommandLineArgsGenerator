@@ -279,9 +279,20 @@ namespace {{ Namespace }}
                     break;
                 case "complete":
                 {
-                    int pos = int.Parse(segment[1]);
-                    segment = new ArraySegment<string>(args, segment.Offset + 2, segment.Count - 2);
-                    Completer.Complete(segment, pos);
+                    if(segment.Count < 2)
+                        Error("Not all parameters are specified");
+					int pos = int.Parse(segment[1]);
+					if(segment.Count == 2)
+					{
+						segment = new ArraySegment<string>(new string[] {""});
+					}
+					else
+					{
+						var spl = args[2].Split();
+						pos -= spl[0].Length + 1;
+						segment = new ArraySegment<string>(spl, 1, spl.Length - 1);
+                    }
+					Completer.Complete(segment, pos);
                     break;
                 }
                 {{ for cmd in Root.Children; GenerateCase(cmd); end }}

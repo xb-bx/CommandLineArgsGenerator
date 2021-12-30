@@ -5,6 +5,8 @@
             args = new ArraySegment<string>(args.Array, args.Offset + 1, args.Count - 1);
             if(args.Count == 0 && isPosOutOfBound)
                 Result("{{cmd.Children | array.map "Name" | Join " "}}");
+			else if(args.Count == 0)
+				Result("");
             switch(args[0])
             {
                 {{ for c in cmd.Children; GenCases(c); end }}
@@ -83,7 +85,7 @@ namespace {{ Namespace }}
             for(int i = 0; i < args.Count; i++)
             {
                 var arg = args[i];
-                length += arg.Length + 1;
+                length += arg.Length;
                 if(pos <= length)
                     return false;
             }
