@@ -286,12 +286,16 @@ namespace {{ Namespace }}
 					{
 						segment = new ArraySegment<string>(new string[] {""});
 					}
-					else
+					else if(segment.Count == 3)
 					{
 						var spl = args[2].Split();
 						pos -= spl[0].Length + 1;
 						segment = new ArraySegment<string>(spl, 1, spl.Length - 1);
                     }
+					else 
+					{
+						segment = new ArraySegment<string>(segment.Array, segment.Offset + 3, segment.Count - 3);
+					}
 					Completer.Complete(segment, pos);
                     break;
                 }

@@ -4,7 +4,7 @@
         {
             args = new ArraySegment<string>(args.Array, args.Offset + 1, args.Count - 1);
             if(args.Count == 0 && isPosOutOfBound)
-                Result("{{cmd.Children | array.map "Name" | Join " "}}");
+                Result("{{cmd.Children | array.map "Name" | Join "\\n"}}");
 			else if(args.Count == 0)
 				Result("");
             switch(args[0])
@@ -37,7 +37,7 @@
                 {
                     if(!isPosOutOfBound)
                         break;
-                    Result("{{opt.Type | GetEnumMembers | Join " "}}");
+                    Result("{{opt.Type | GetEnumMembers | Join "\\n"}}");
                     break;
                 }
                 {{ end }}
@@ -71,8 +71,8 @@ namespace {{ Namespace }}
     {
         private static void Result(IEnumerable<string> res)
         {
-            Console.WriteLine(string.Join(' ', res));
-            Environment.Exit(0);
+            Console.WriteLine(string.Join("\n", res)); 
+			Environment.Exit(0);
         }
         private static void Result(string res)
         {
@@ -92,10 +92,10 @@ namespace {{ Namespace }}
             return true;
         }
         public static void Complete(ArraySegment<string> args, int position)
-        {
+        { 
             bool isPosOutOfBound = IsPositionOutOfBounds(args, position);
             if(args.Count == 0)
-                Result("{{Join(Root.Children | array.map "Name", " ")}}");
+                Result("{{Join(Root.Children | array.map "Name", "\\n")}}");
             switch(args[0])
             {
                 {{for c in Root.Children; GenCases c; end}}
