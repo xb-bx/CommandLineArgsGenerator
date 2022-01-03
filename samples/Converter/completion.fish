@@ -1,0 +1,1 @@
+complete -f -c Converter -a '(Converter complete (commandline -C) (commandline -pc))'
