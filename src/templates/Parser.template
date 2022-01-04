@@ -281,7 +281,15 @@ namespace {{ Namespace }}
                 {
                     if(segment.Count < 2)
                         Error("Not all parameters are specified");
-					int pos = int.Parse(segment[1]);
+					int pos = 0;
+					try
+					{
+						pos = int.Parse(segment[1]);
+					}
+					catch
+					{
+						Error("Cannot parse position");
+					}
 					if(segment.Count == 2)
 					{
 						segment = new ArraySegment<string>(new string[] {""});
