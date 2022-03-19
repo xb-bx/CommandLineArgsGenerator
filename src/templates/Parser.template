@@ -1,5 +1,5 @@
 {{ convs = {} }}
-{{~ func ShortHelp(cmd) ~}}{{ cmd.Name }} - { HelpTexts.{{ cmd.UnderscoredName }} }{{~ end~}}
+{{~ func ShortHelp(cmd) ~}}{{ cmd.Name }}{{ if cmd && cmd.HelpText && !cmd.HelpText.IsEmpty }} - { HelpTexts.{{ cmd.UnderscoredName }} }{{~ end ~}}{{~ end~}}
 {{~
     func GetCmdHelp(command)
 ~}}
@@ -19,7 +19,7 @@
 {{~ func Help(command)
         if command.Children
 ~}}
-            case "{{ command.FullName }}":
+            case "{{ command.FullName }}": 
                 return HelpTexts.Full_{{command.UnderscoredName}};
             {{ for cmd in command.Children; Help(cmd); end }}
         {{ if command.Default; Help(command.Default); end }}

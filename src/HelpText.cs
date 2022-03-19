@@ -8,6 +8,7 @@ namespace CommandLineArgsGenerator
     {
         private Dictionary<string, string> texts;
         public Dictionary<string, string> Texts => texts ??= new(); 
+        public bool IsEmpty => Texts.Count == 0;
         public string? this[string lang]
         {
             get
