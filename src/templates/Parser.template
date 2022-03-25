@@ -126,7 +126,7 @@ case "{{ command.Name }}":
     }
     {{ if (command.Parameters | array.size) > 0 }}
         {{ for parameter in command.Parameters }}
-            {{ parameter.DisplayTypeName }} {{ parameter.RawName }} = default;
+            {{ parameter.DisplayTypeName }}{{ parameter.IsNullable ? "?" : ""}} {{ parameter.RawName }} = default;
             try
             {
                 {{GenerateConverter(parameter, "segment[" + (for.index) + "]") }}
@@ -190,7 +190,7 @@ case "{{ command.Name }}":
             }
         }
         {{ for option in command.Options }}
-            {{ option.DisplayTypeName }}{{option.IsArray ? "[]": ""}} {{ option.RawName}} = {{ option.Default ?? "default" }};
+            {{ option.DisplayTypeName }}{{option.IsArray ? "[]": ""}}{{option.IsNullable ? "?": ""}} {{ option.RawName}} = {{ option.Default ?? "default" }};
             try
             {
                 if({{option.RawName}}Raw != null)
