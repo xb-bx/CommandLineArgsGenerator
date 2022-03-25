@@ -52,12 +52,15 @@ namespace CommandLineArgsGenerator
                     }
                 }
             }
-            else if(Namespace is null)
+            else if(node is NamespaceDeclarationSyntax @namespace && Namespace is null)
             {
-                if(node is NamespaceDeclarationSyntax @namespace)
                     Namespace = @namespace.Name.ToString();
-                else if(node is FileScopedNamespaceDeclarationSyntax ns)
-                    Namespace = ns.Name.ToString();
+            }
+            else if(node is FileScopedNamespaceDeclarationSyntax ns)
+            {
+                var nsstring = ns.Name.ToString();
+                if(Namespace is null || Namespace.StartsWith(nsstring))
+                    Namespace = nsstring;
             }
             return null;
         }

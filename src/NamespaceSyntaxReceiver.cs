@@ -8,12 +8,15 @@ namespace CommandLineArgsGenerator
         public string? Namespace { get; set; }
         public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
         {
-            if(Namespace is null)
+            if(Namespace is null && syntaxNode is NamespaceDeclarationSyntax @namespace)
             {
-                if(syntaxNode is NamespaceDeclarationSyntax @namespace)
-                    Namespace = @namespace.Name.ToString();
-                else if(syntaxNode is FileScopedNamespaceDeclarationSyntax ns)
-                    Namespace = ns.Name.ToString();
+                Namespace = @namespace.Name.ToString();
+            }
+            else if(syntaxNode is FileScopedNamespaceDeclarationSyntax ns)
+            {
+                var nsstring = ns.Name.ToString();
+                if(Namespace is null || Namespace.StartsWith(nsstring))
+                    Namespace = nsstring;
             }
         }
     }

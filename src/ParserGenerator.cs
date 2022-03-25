@@ -58,8 +58,7 @@ namespace CommandLineArgsGenerator
 		}
 		
         public void Execute(GeneratorExecutionContext context)
-        { 
-            
+        {        
             var receiver = context.SyntaxContextReceiver as ParserSyntaxReceiver; 
             if (receiver?.Root?.Class is not null && receiver.Namespace is not null)
             {
@@ -105,7 +104,6 @@ namespace CommandLineArgsGenerator
                 context.AddSource("EnumParser.cs", enp);               
                 context.AddSource("Completer.cs", completion);                
 			}
-
         }
         public IEnumerable<(INamedTypeSymbol type, string typeName, string displayTypeName)> GetEnumsInfo(IEnumerable<CommandInfoBase> commands)
         {
@@ -302,30 +300,30 @@ namespace CommandLineArgsGenerator
 				help = HelpText.FromXElement(p,defaultLanguage);
 			}
 
-            var type = (typeInfo.Type) as INamedTypeSymbol;
+            var type = (typeInfo.Type);
             bool isNullable = false;
-            if(type.Name == "Nullable")
+            if(type?.Name == "Nullable")
             {
-                type = type.TypeArguments.First() as INamedTypeSymbol;
+                type = (type as INamedTypeSymbol)!.TypeArguments.First() as INamedTypeSymbol;
                 isNullable = true;
             } 
             else if(param.ToFullString().Contains('?'))
             {
                 isNullable = true;
             }
-            string displayTypeName = type.ToDisplayString(typeFormat);
-            if (param.Default == null && type?.TypeKind != TypeKind.Array && !isNullable)
+            string? displayTypeName = type?.ToDisplayString(typeFormat);
+            if (param.Default == null && type.TypeKind != TypeKind.Array && !isNullable)
             {
                 return new ParameterInfo
                 {
                     RawName = name,
                     Name = TransformName(name),
-                    Type = type,
+                    Type = type as INamedTypeSymbol,
                     HelpText = help,
                     DisplayTypeName = displayTypeName,
                 };
             }
-            else if (type?.TypeKind == TypeKind.Array)
+            else if (type.TypeKind == TypeKind.Array)
             {
                 var t = (type as IArrayTypeSymbol)!.ElementType as INamedTypeSymbol;
                 return new OptionInfo
@@ -334,7 +332,7 @@ namespace CommandLineArgsGenerator
                     Name = TransformName(name),
                     Type = t,
                     HelpText = help,
-                    DisplayTypeName = t!.ToDisplayString(typeFormat),
+                    DisplayTypeName = t?.ToDisplayString(typeFormat) ?? "FUCK?",
                     IsArray = true,
                     Alias = p?.Attribute("alias")?.Value,
                     Default = param.Default?.ToString().TrimStart('=').TrimStart() ?? "null"
@@ -346,9 +344,9 @@ namespace CommandLineArgsGenerator
                 {
                     RawName = name,
                     Name = TransformName(name),
-                    Type = type,
+                    Type = type as INamedTypeSymbol,
                     HelpText = help,
-                    DisplayTypeName = displayTypeName,
+                    DisplayTypeName = displayTypeName ?? "FUCK?",
                     Alias = p?.Attribute("alias")?.Value,
                     Default = param.Default?.ToString().TrimStart('=').TrimStart()
                 };
