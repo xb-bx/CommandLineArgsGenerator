@@ -11,6 +11,7 @@ namespace CommandLineArgsGenerator
         public string RawName { get; set; }
         public INamedTypeSymbol Type { get; set; }
         public HelpText? HelpText { get; set; } 
+        public bool IsNullable { get; set; }
         
         private string displayTypeName;
         public string DisplayTypeName 

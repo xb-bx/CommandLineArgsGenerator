@@ -299,6 +299,7 @@ namespace CommandLineArgsGenerator
 
         private ParameterInfo GetParamOrOption(ParameterSyntax param, SemanticModel semanticModel, XDocument documentation)
         {
+
             string name = param.Identifier.ValueText;
 
             var typeInfo = semanticModel.GetTypeInfo(param.Type!);
@@ -310,17 +311,13 @@ namespace CommandLineArgsGenerator
 				help = HelpText.FromXElement(p,defaultLanguage);
 			}
 
-            var type = (typeInfo.Type);
             bool isNullable = false;
-            if(type?.Name == "Nullable")
+            if(param.Type is NullableTypeSyntax nts)
             {
-                type = (type as INamedTypeSymbol)!.TypeArguments.First() as INamedTypeSymbol;
+                typeInfo = semanticModel.GetTypeInfo(nts.ElementType); 
                 isNullable = true;
             } 
-            else if(param.ToFullString().Contains('?'))
-            {
-                isNullable = true;
-            }
+            var type = (typeInfo.Type);
             string? displayTypeName = type?.ToDisplayString(typeFormat);
             if (param.Default == null && type.TypeKind != TypeKind.Array && !isNullable)
             {
@@ -331,6 +328,7 @@ namespace CommandLineArgsGenerator
                     Type = type as INamedTypeSymbol,
                     HelpText = help,
                     DisplayTypeName = displayTypeName,
+                    IsNullable = isNullable,
                 };
             }
             else if (type.TypeKind == TypeKind.Array)
@@ -358,7 +356,8 @@ namespace CommandLineArgsGenerator
                     HelpText = help,
                     DisplayTypeName = displayTypeName ?? "FUCK?",
                     Alias = p?.Attribute("alias")?.Value,
-                    Default = param.Default?.ToString().TrimStart('=').TrimStart()
+                    Default = param.Default?.ToString().TrimStart('=').TrimStart(),
+                    IsNullable = isNullable,
                 };
             }
         }
