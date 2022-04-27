@@ -113,9 +113,23 @@ case "{{ command.Name }}":
             GenerateCase(command.Default, true)
         else
         ~}}
-        default:
-            Console.WriteLine(GetHelp());
+        case string {{ command.RawName}}_unknown:
+            {{ if GenerateSuggestions }}
+            var posible_{{command.RawName}} = 
+                new[] { {{ for cmd in command.Children; "\"" + cmd.Name + "\", "; end }} }
+                .Select(cmd => (cmd, LevenshteinDistance.Calculate(cmd, {{ command.RawName }}_unknown )))
+                .OrderBy(x => x.Item2)
+                .ThenBy(x => x.Item1)
+                .FirstOrDefault(x => x.Item2 <= 2);
+            if(posible_{{command.RawName}}.Item1 is not null) 
+            {
+                Console.WriteLine(GetHelp("{{ command.FullName }}"));
+                Console.WriteLine($"Did you mean '{posible_{{command.RawName}}.Item1}'?");
+            }
+            {{ else }}
+            Console.WriteLine(GetHelp("{{ command.FullName }}"));
             Error("Unknown command");
+            {{ end }}
             break;
         {{~ end ~}}
     }
@@ -185,7 +199,24 @@ case "{{ command.Name }}":
                 break;
                 {{ end }}
                 case string opt:
+                    {{ if GenerateSuggestions }}
+                    {
+                        var posible_{{command.RawName}} = 
+                            new string[]{ {{ for opt in command.Options; "\"--" + opt.Name + "\", "; if opt.Alias; "\"-" + opt.Alias + "\", "; end; end }} }
+                            .Select(cmd => (cmd, LevenshteinDistance.Calculate(cmd, opt)))
+                            .OrderBy(x => x.Item2)
+                            .ThenBy(x => x.Item1)
+                            .FirstOrDefault(x => x.Item2 <= 2);
+                            
+                        if(posible_{{command.RawName}}.Item1 is not null) 
+                        {
+                            Console.WriteLine(GetHelp("{{command.FullName}}"));
+                            Console.WriteLine($"Did you mean '{posible_{{command.RawName}}.Item1}'?");
+                        } 
+                    }
+                    {{ else }}
                     Error($"Unknown parameter {opt}");
+                    {{ end }}
                     break;
             }
         }
@@ -277,6 +308,7 @@ namespace {{ Namespace }}
                         Console.WriteLine(GetHelp(string.Join(" ", args.Skip(1))));
                     }
                     break;
+                {{~ if GenerateCompletion }}
                 case "complete":
                 {
                     if(segment.Count < 2)
@@ -307,8 +339,29 @@ namespace {{ Namespace }}
 					Completer.Complete(segment, pos);
                     break;
                 }
+                {{~ end ~}}
                 {{ for cmd in Root.Children; GenerateCase(cmd); end }}
                 {{ if Root.Default; GenerateCase(Root.Default, true); end }}
+                case string unknowncmd: 
+                {{ if GenerateSuggestions }}
+                {
+                    var posible = 
+                        new[] { "help", {{ for cmd in Root.Children; "\"" + cmd.Name + "\", "; end }} }
+                        .Select(cmd => (cmd, LevenshteinDistance.Calculate(cmd, unknowncmd)))
+                        .OrderBy(x => x.Item2)
+                        .ThenBy(x => x.Item1)
+                        .FirstOrDefault(x => x.Item2 <= 2);
+                    if(posible.Item1 is not null) 
+                    {
+                        Console.WriteLine(GetHelp());
+                        Console.WriteLine($"Did you mean '{posible.Item1}'?");
+                    } 
+                }
+                {{ else }}
+                Console.WriteLine(GetHelp());
+                Error("Unknown command");
+                {{ end }}
+                break;
             }
         }
 	}

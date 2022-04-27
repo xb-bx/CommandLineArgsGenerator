@@ -63,7 +63,8 @@
         {
 			var sb  = new StringBuilder();
             {{ if cmd.Children }}
-				sb.AppendLine({{cmd.UnderscoredName}});
+				if(!string.IsNullOrEmpty({{cmd.UnderscoredName}}))
+                    sb.AppendLine({{cmd.UnderscoredName}});
 				sb.AppendLine("subcommands:");
 				{{ if cmd.Default }}
 				sb.Append("\t(default)").Append("{{cmd.Default.Name}}");

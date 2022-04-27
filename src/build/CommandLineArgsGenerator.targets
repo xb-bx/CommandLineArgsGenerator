@@ -3,5 +3,7 @@
     <ItemGroup>
         <CompilerVisibleProperty Include="LogGeneratedParser"/>
         <CompilerVisibleProperty Include="DefaultLanguage"/>
+        <CompilerVisibleProperty Include="GenerateSuggestions"/>
+        <CompilerVisibleProperty Include="GenerateCompletion"/>
     </ItemGroup>
 </Project>

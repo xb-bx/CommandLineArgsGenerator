@@ -80,29 +80,35 @@ namespace CommandLineArgsGenerator
                     GetEnumsInfo(defaultCommand is null ? cmds : cmds.Append(defaultCommand))
                     .Select(x => (x.type.GetMembers().Select(y => y.Name).ToArray(), x.typeName,x.displayTypeName))
                     .ToArray(); 
+                
+                bool.TryParse(context.GetMSBuildProperty("GenerateCompletion"), out bool genComp);
+                bool.TryParse(context.GetMSBuildProperty("GenerateSuggestions"), out bool genSugg);
+                
                 Queue<string> errors = new();
-                var ctx = CreateContext(CreateParserTemplateModel(receiver), errors);
-                string ep = parserTemplate.Render(ctx);
-				string completion = completionTemplate.Render(ctx);
+                var ctx = CreateContext(CreateParserTemplateModel(receiver, context), errors);
+                string entryPoint = parserTemplate.Render(ctx);
+				string completion = genComp ? completionTemplate.Render(ctx) : "";
                 ctx = CreateContext(CreateHelpTextsModel(receiver), errors);
-				string ht = helpTextsTemplate.Render(ctx);
+				string helpTexts = helpTextsTemplate.Render(ctx);
                 ctx = CreateContext(CreateEnumsModel(receiver.Namespace, enums), errors);
-                string enp = enumParserTemplate.Render(ctx);
+                string enumParser = enumParserTemplate.Render(ctx);
                 
                 var logPath = context.GetMSBuildProperty("LogGeneratedParser"); 
                 if(string.IsNullOrWhiteSpace(logPath) is not true)
 				{
-					File.WriteAllText(Path.Combine(logPath, "EntryPoint.cs"), ep);
-					File.WriteAllText(Path.Combine(logPath, "HelpTexts.cs"), ht); 
-                    File.WriteAllText(Path.Combine(logPath, "EnumParser.cs"), enp);
-                    File.WriteAllText(Path.Combine(logPath, "Completer.cs"), completion);
+					File.WriteAllText(Path.Combine(logPath, "EntryPoint.cs"), entryPoint);
+					File.WriteAllText(Path.Combine(logPath, "HelpTexts.cs"), helpTexts); 
+                    File.WriteAllText(Path.Combine(logPath, "EnumParser.cs"), enumParser);
+                    if(genComp)
+                        File.WriteAllText(Path.Combine(logPath, "Completer.cs"), completion);
                 }
                 foreach(var item in errors)
                     context.ReportDiagnostic(Diagnostic.Create(GenerationError, null, item));
-                context.AddSource("EntryPoint.cs", ep);
-                context.AddSource("HelpTexts.cs", ht);
-                context.AddSource("EnumParser.cs", enp);               
-                context.AddSource("Completer.cs", completion);                
+                context.AddSource("EntryPoint.cs", entryPoint);
+                context.AddSource("HelpTexts.cs", helpTexts);
+                context.AddSource("EnumParser.cs", enumParser);               
+                if(genComp)
+                    context.AddSource("Completer.cs", completion);                
 			}
         }
         public IEnumerable<(INamedTypeSymbol type, string typeName, string displayTypeName)> GetEnumsInfo(IEnumerable<CommandInfoBase> commands)
@@ -132,13 +138,17 @@ namespace CommandLineArgsGenerator
             return enums;
                 
         }
-		private object CreateParserTemplateModel(ParserSyntaxReceiver receiver)
+		private object CreateParserTemplateModel(ParserSyntaxReceiver receiver, GeneratorExecutionContext context)
 		{ 
+            bool.TryParse(context.GetMSBuildProperty("GenerateCompletion"), out bool genComp);
+            bool.TryParse(context.GetMSBuildProperty("GenerateSuggestions"), out bool genSugg);
 			return new {
-					Namespace = receiver.Namespace,
-					Root = receiver.Root,
-					Converters = receiver.Converters.GroupBy(x => x.Value).ToDictionary(t => t.Key, t => t.Select(r => r.Key).ToList())
-				};
+				Namespace = receiver.Namespace,
+				Root = receiver.Root,
+				Converters = receiver.Converters.GroupBy(x => x.Value).ToDictionary(t => t.Key, t => t.Select(r => r.Key).ToList()),
+		        GenerateCompletion = genComp,
+                GenerateSuggestions = genSugg,
+            };
 		}
 		private object CreateHelpTextsModel(ParserSyntaxReceiver receiver)
 		{
