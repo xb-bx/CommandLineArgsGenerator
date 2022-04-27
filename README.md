@@ -46,10 +46,12 @@ There will be one command 'file' with two subcommands 'create' and 'delete'
 ### Shell autocompletion
 Generator automaticaly creates command 'complete' that accepts cursor position and argument list. 
 Using this command you can create autocompletion script for your shell.
-**Disabled by default. To Enable this feature insert '<GenerateCompletion>True</GenerateCompletion>' into your .csproj**
+
+**Disabled by default. To enable this feature insert `<GenerateCompletion>True</GenerateCompletion>` into your .csproj**
 ### Command suggestions 
-If you mistyped command or option name it will print suggestion "Did you mean '<command name>'".
-**Disabled by default. To Enable this feature insert '<GenerateSuggestions>True</GenerateSuggestions>' into your .csproj**
+If you mistyped command or option name it will print suggestion "Did you mean "command-name?"".
+
+**Disabled by default. To enable this feature insert `<GenerateSuggestions>True</GenerateSuggestions>` into your .csproj**
 ### Tasks
 Methods that returns `Task` or `Task<T>` are supported
 ### Default commands
