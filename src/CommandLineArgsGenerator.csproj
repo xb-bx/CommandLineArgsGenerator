@@ -12,11 +12,7 @@
         <Description>Source generator to generate command line args parser</Description>
         <PackageProjectUrl>https://github.com/xb-bx/CommandLineArgsGenerator</PackageProjectUrl>
         <RepositoryUrl>https://github.com/xb-bx/CommandLineArgsGenerator</RepositoryUrl>
-<<<<<<< HEAD
         <Version>0.8.0</Version>
-=======
-        <Version>0.7.9</Version>
->>>>>>> 1ffa74ed3e170547f0275224919830dc1dacafde
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
