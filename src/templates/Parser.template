@@ -212,10 +212,15 @@ case "{{ command.Name }}":
                         {
                             Console.WriteLine(GetHelp("{{command.FullName}}"));
                             Console.WriteLine($"Did you mean '{posible_{{command.RawName}}.Item1}'?");
-                        } 
+                            Environment.Exit(0);
+                        }
+                        else 
+                        {
+                            Error($"Unknown option {opt}");
+                        }
                     }
                     {{ else }}
-                    Error($"Unknown parameter {opt}");
+                    Error($"Unknown option {opt}");
                     {{ end }}
                     break;
             }
@@ -341,7 +346,8 @@ namespace {{ Namespace }}
                 }
                 {{~ end ~}}
                 {{ for cmd in Root.Children; GenerateCase(cmd); end }}
-                {{ if Root.Default; GenerateCase(Root.Default, true); end }}
+                {{ if Root.Default; GenerateCase(Root.Default, true); }}
+                {{else}}
                 case string unknowncmd: 
                 {{ if GenerateSuggestions }}
                 {
@@ -356,12 +362,18 @@ namespace {{ Namespace }}
                         Console.WriteLine(GetHelp());
                         Console.WriteLine($"Did you mean '{posible.Item1}'?");
                     } 
+                    else 
+                    {                                
+                        Console.WriteLine(GetHelp());
+                        Error("Unknown command");
+                    }
                 }
                 {{ else }}
                 Console.WriteLine(GetHelp());
                 Error("Unknown command");
                 {{ end }}
                 break;
+                {{ end }}
             }
         }
 	}

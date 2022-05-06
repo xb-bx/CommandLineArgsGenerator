@@ -4,6 +4,3 @@ This is sample command line app
 
 `dotnet build`  
 Will produce regular .NET dll.
-
-`dotnet publish -c <Configuration> -r <RID>`  
-Will produce native executable
