@@ -12,9 +12,12 @@
         <Description>Source generator to generate command line args parser</Description>
         <PackageProjectUrl>https://github.com/xb-bx/CommandLineArgsGenerator</PackageProjectUrl>
         <RepositoryUrl>https://github.com/xb-bx/CommandLineArgsGenerator</RepositoryUrl>
-        <Version>0.8.1</Version>
+        <Version>0.8.2</Version>
+        <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     </PropertyGroup>
-
+    <ItemGroup>
+        <None Include="../LICENSE.md" Pack="true" PackagePath="LICENSE.md"/>
+    </ItemGroup>
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     </PropertyGroup>
