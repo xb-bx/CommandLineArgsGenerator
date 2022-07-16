@@ -81,7 +81,7 @@
 					sb.Append(" - ").Append({{c.UnderscoredName}});
 				}
 				sb.Append('\n');
-				{{ end }}
+                {{ end }}
 			{{ else }}
 				sb.AppendLine({{cmd.UnderscoredName }});
 				{{ if (cmd.Parameters | array.size) > 0 }}
@@ -96,18 +96,17 @@
 						sb.Append('\n');
 					{{ end }}
 				{{ end }} 
-				{{ if (cmd.Options | array.size) > 0 }}
-					sb.AppendLine("options:");
-					{{ for option in cmd.Options}}
-						{{ name = cmd.UnderscoredName + "_" + option.RawName }}
-						sb.Append('\t'){{ if option.Alias; ".Append(\"-" + option.Alias + "|\")"; end}}.Append("--{{ option.Name }}");
-						if(!string.IsNullOrEmpty({{name}}))
-						{
-							sb.Append(" - ").Append({{name}});
-						}
-						sb.Append('\n');
-					{{ end }}
-				{{ end }} 
+				sb.AppendLine("options:");
+				{{ for option in cmd.Options}}
+					{{ name = cmd.UnderscoredName + "_" + option.RawName }}
+					sb.Append('\t'){{ if option.Alias; ".Append(\"-" + option.Alias + "|\")"; end}}.Append("--{{ option.Name }}");
+					if(!string.IsNullOrEmpty({{name}}))
+					{
+						sb.Append(" - ").Append({{name}});
+					}
+					sb.Append('\n');
+                {{ end }} 
+                sb.Append("\t--help - shows this message\n");
 			{{ end }}	
 			return sb.ToString();
         }

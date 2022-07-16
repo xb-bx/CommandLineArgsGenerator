@@ -12,7 +12,7 @@
         <Description>Source generator to generate command line args parser</Description>
         <PackageProjectUrl>https://github.com/xb-bx/CommandLineArgsGenerator</PackageProjectUrl>
         <RepositoryUrl>https://github.com/xb-bx/CommandLineArgsGenerator</RepositoryUrl>
-        <Version>0.8.2</Version>
+        <Version>0.8.3</Version>
         <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     </PropertyGroup>
     <ItemGroup>
@@ -44,7 +44,7 @@
         </PackageReference>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Scriban" Version="5.4.1" IncludeAssets="Build"/>
+        <PackageReference Include="Scriban" Version="5.5.0" IncludeAssets="Build"/>
     </ItemGroup>
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
