@@ -12,6 +12,7 @@ using Scriban.Runtime;
 using System.Xml.Linq;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Diagnostics;
+using Scriban.Parsing;
 
 namespace CommandLineArgsGenerator
 {
@@ -28,7 +29,7 @@ namespace CommandLineArgsGenerator
                 DiagnosticSeverity.Error,
                 true
                 );
-        private static SymbolDisplayFormat typeFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+        private static SymbolDisplayFormat typeFormat = new SymbolDisplayFormat(genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters, typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
         private static readonly Template parserTemplate, helpTextsTemplate, enumParserTemplate, completionTemplate;
 		private string defaultLanguage = "";
         static ParserGenerator()
@@ -318,7 +319,7 @@ namespace CommandLineArgsGenerator
                 isNullable = true;
             } 
             var type = (typeInfo.Type);
-            string? displayTypeName = type?.ToDisplayString(typeFormat);
+            string? displayTypeName = type?.ToDisplayString(typeFormat); 
             if (param.Default == null && type.TypeKind != TypeKind.Array && !isNullable)
             {
                 return new ParameterInfo
@@ -358,6 +359,7 @@ namespace CommandLineArgsGenerator
                     Alias = p?.Attribute("alias")?.Value,
                     Default = param.Default?.ToString().TrimStart('=').TrimStart(),
                     IsNullable = isNullable,
+                    
                 };
             }
         }
