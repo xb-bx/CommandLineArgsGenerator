@@ -1,20 +1,22 @@
 namespace {{ Namespace }}
 {
-    public static class EnumParser 
-    {  
+    public static class EnumParser
+    {
         {{ for i in EnumsInfo }}
         public static {{ i.Item3 }} Parse_{{ i.Item2 }}(string value)
         {
-            switch(value.ToLower())
+            switch(value{{ if EnumCaseInsensitive }}.ToLower(){{ end }})
             {
                 {{ for val in i.Item1 }}
                 {{ if val != ".ctor" }}
-                case "{{ val | TransformName }}":
+                {{ for variant in (val | GetNameVariants) }}
+                case "{{ variant }}":
+                {{ end }}
                     return {{ i.Item3 }}.{{ val }};
                 {{ end }}
                 {{ end }}
             }
-            throw new System.Exception("Cannot parse enum");
+            throw new System.Exception($"Cannot parse enum value '{value}' for type '{{ i.Item3 }}'");
         }
         {{ end }}
     }

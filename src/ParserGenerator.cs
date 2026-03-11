@@ -13,6 +13,7 @@ using System.Xml.Linq;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Diagnostics;
 using Scriban.Parsing;
+using CommandLineArgsGenerator.Styles;
 
 namespace CommandLineArgsGenerator
 {
@@ -32,6 +33,8 @@ namespace CommandLineArgsGenerator
         private static SymbolDisplayFormat typeFormat = new SymbolDisplayFormat(genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters, typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
         private static readonly Template parserTemplate, helpTextsTemplate, enumParserTemplate, completionTemplate;
 		private string defaultLanguage = "";
+        private NamingStyle paramStyle = NamingStyle.AllVariants;
+        private NamingStyle enumStyle = NamingStyle.AllVariants;
         static ParserGenerator()
         {
             var asm = Assembly.GetExecutingAssembly();
@@ -66,16 +69,18 @@ namespace CommandLineArgsGenerator
 				defaultLanguage = context.GetMSBuildProperty("DefaultLanguage");
                 defaultLanguage = string.IsNullOrWhiteSpace(defaultLanguage) ? "en" : defaultLanguage;
 				var semanticModel = context.Compilation.GetSemanticModel(receiver.Root.Class.SyntaxTree);
-                var cmds = GetCommands(receiver.Root.Class, semanticModel, out CommandInfoBase? defaultCommand);
+                paramStyle = receiver.Root.ParamStyle;
+                enumStyle = receiver.Root.EnumStyle;
+                var cmds = GetCommands(receiver.Root.Class, semanticModel, out CommandInfoBase? defaultCommand, paramStyle);
                 var rootDoc = GetXmlDocumentation(receiver.Root.Class);
-                
+
 				var rh = rootDoc.Descendants("summary").FirstOrDefault();
 				if(rh is not null)
 				{
 					receiver.Root.HelpText = HelpText.FromXElement(rh, defaultLanguage);
 				}
                 receiver.Root.Children = cmds;
-                receiver.Root.Default = defaultCommand; 
+                receiver.Root.Default = defaultCommand;
 				
                 var enums = 
                     GetEnumsInfo(defaultCommand is null ? cmds : cmds.Append(defaultCommand))
@@ -84,7 +89,7 @@ namespace CommandLineArgsGenerator
                 
                 bool.TryParse(context.GetMSBuildProperty("GenerateCompletion"), out bool genComp);
                 bool.TryParse(context.GetMSBuildProperty("GenerateSuggestions"), out bool genSugg);
-                
+               
                 Queue<string> errors = new();
                 var ctx = CreateContext(CreateParserTemplateModel(receiver, context), errors);
                 string entryPoint = parserTemplate.Render(ctx);
@@ -139,31 +144,59 @@ namespace CommandLineArgsGenerator
             return enums;
                 
         }
+		private (string[] optionPrefixes, string[] aliasPrefixes) GetPrefixArrays(PrefixStyle argPrefix)
+		{
+            var optionPrefixes = new List<string>();
+            var aliasPrefixes = new List<string>();
+            if (argPrefix.HasFlag(PrefixStyle.DoubleHyphen)) { optionPrefixes.Add("--"); }
+            if (argPrefix.HasFlag(PrefixStyle.Hyphen)) { optionPrefixes.Add("-"); aliasPrefixes.Add("-"); }
+            if (argPrefix.HasFlag(PrefixStyle.Slash)) { optionPrefixes.Add("/"); aliasPrefixes.Add("/"); }
+            if (aliasPrefixes.Count == 0) aliasPrefixes.Add("-"); // fallback for aliases
+            return (optionPrefixes.ToArray(), aliasPrefixes.ToArray());
+		}
 		private object CreateParserTemplateModel(ParserSyntaxReceiver receiver, GeneratorExecutionContext context)
-		{ 
+		{
             bool.TryParse(context.GetMSBuildProperty("GenerateCompletion"), out bool genComp);
             bool.TryParse(context.GetMSBuildProperty("GenerateSuggestions"), out bool genSugg);
+            var root = receiver.Root!;
+            var (optionPrefixes, aliasPrefixes) = GetPrefixArrays(root.ArgPrefix);
 			return new {
 				Namespace = receiver.Namespace,
-				Root = receiver.Root,
+				Root = root,
 				Converters = receiver.Converters.GroupBy(x => x.Value).ToDictionary(t => t.Key, t => t.Select(r => r.Key).ToList()),
 		        GenerateCompletion = genComp,
                 GenerateSuggestions = genSugg,
+                ParamCaseInsensitive = root.ParamStyle.HasFlag(NamingStyle.CaseInsensitive),
+                SeparatorColon = root.ValueSeparator.HasFlag(SeparatorStyle.Colon),
+                SeparatorEquals = root.ValueSeparator.HasFlag(SeparatorStyle.Equals),
+                OptionPrefixes = optionPrefixes,
+                AliasPrefixes = aliasPrefixes,
+                SkipCommandParsing = root.SkipCommandParsing && root.Children.Count == 0 && root.Default != null,
+                HelpCommand = root.HelpCommand,
+                MandatoryNamed = root.MandatoryStyle == MandatoryStyle.Named || root.MandatoryStyle == MandatoryStyle.Mixed,
+                MandatoryPositional = root.MandatoryStyle == MandatoryStyle.Positional || root.MandatoryStyle == MandatoryStyle.Mixed,
             };
 		}
 		private object CreateHelpTextsModel(ParserSyntaxReceiver receiver)
 		{
+            var (optionPrefixes, aliasPrefixes) = GetPrefixArrays(receiver.Root!.ArgPrefix);
 			return new {
 				Namespace = receiver.Namespace,
 				Root = receiver.Root,
 				DefaultLanguage = defaultLanguage,
+				OptionPrefixes = optionPrefixes,
+				AliasPrefixes = aliasPrefixes,
+				HelpCommand = receiver.Root.HelpCommand,
+				MandatoryNamed = receiver.Root!.MandatoryStyle == MandatoryStyle.Named || receiver.Root!.MandatoryStyle == MandatoryStyle.Mixed,
 			};
 		}
 		public object CreateEnumsModel(string @namespace,(string[] values, string typeName, string displayTypeName)[] enums)
         {
             return new {
                 Namespace = @namespace,
-                EnumsInfo = enums
+                EnumsInfo = enums,
+                EnumCaseInsensitive = enumStyle.HasFlag(NamingStyle.CaseInsensitive),
+                EnumStyleFlags = (int)enumStyle,
             };
         }
         private TemplateContext CreateContext(object model, Queue<string> errors)
@@ -173,8 +206,9 @@ namespace CommandLineArgsGenerator
 			sc.Import("HasCtor", (Func<ParameterInfo, IEnumerable<object>, bool>)((param, args) => param.HasCtor(args.Cast<string>().ToArray())));
 			sc.Import("JoinParamsAndOptions", (Func<CommandInfo, string>)((cmd) => string.Join(", ", cmd.Parameters.Concat(cmd.Options).Select(p => p.RawName))));
 			sc.Import("Join", ((Func<IEnumerable<object>, string, string>)((e, c) => string.Join(c, e))));
-            sc.Import("GetEnumMembers", ((Func<INamedTypeSymbol, IEnumerable<string>>)(x => x.GetMembers().Where(m => m.Name != ".ctor").Select(m => TransformName(m.Name)))));
-            sc.Import("TransformName", (Func<string,string>)TransformName);
+            var capturedEnumStyle = enumStyle;
+            sc.Import("GetEnumMembers", ((Func<INamedTypeSymbol, IEnumerable<string>>)(x => x.GetMembers().Where(m => m.Name != ".ctor").Select(m => GetNameVariants(m.Name, capturedEnumStyle)[0]))));
+            sc.Import("GetNameVariants", (Func<string, string[]>)(name => GetNameVariants(name, capturedEnumStyle)));
             sc.Import("Error", (Action<string>)(error => errors.Enqueue(error)));
 			var ctx = new TemplateContext();
 			ctx.PushGlobal(sc);
@@ -182,18 +216,25 @@ namespace CommandLineArgsGenerator
 			ctx.MemberRenamer = x => x.Name;
 			return ctx;
 		}
-        private List<CommandInfoBase> GetCommands(ClassDeclarationSyntax @class, SemanticModel semanticModel, out CommandInfoBase? defaultCommand, string? prevName = null)
+        private void SetNameVariants(CommandInfoBase cmd, NamingStyle style, string[]? parentFullNameVariants)
+        {
+            cmd.NameVariants = GetNameVariants(cmd.RawName, style);
+            cmd.FullNameVariants = parentFullNameVariants != null
+                ? parentFullNameVariants.SelectMany(p => cmd.NameVariants.Select(n => p + " " + n)).ToArray()
+                : cmd.NameVariants;
+            cmd.UnderscoredName = cmd.FullNameVariants[0].Replace(" ", "_").Replace('-', '_').Replace('.', '_');
+        }
+        private List<CommandInfoBase> GetCommands(ClassDeclarationSyntax @class, SemanticModel semanticModel, out CommandInfoBase? defaultCommand, NamingStyle style, string[]? parentFullNameVariants = null)
         {
             defaultCommand = null;
             var cmds = new List<CommandInfoBase>();
             var methods = GetMethods(@class);
             foreach (var method in methods)
             {
-                
+
                 var doc = GetXmlDocumentation(method);
                 var rawName = method.Identifier.ToString().Trim();
                 var paramAndOpts = GetParamsAndOptions(method, doc, semanticModel);
-                var name = TransformName(rawName); 
 				var h = doc.Descendants("summary").FirstOrDefault();
 				HelpText? help = null;
 				if(h is not null)
@@ -202,31 +243,36 @@ namespace CommandLineArgsGenerator
 				}
                 var cmd = new CommandInfo
                     {
-                        Name = name,
                         RawName = rawName,
                         NameInSourceCode = ParserSyntaxReceiver.GetFullName(method),
-                        FullName = prevName is not null ? $"{prevName} {name}" : name,
                         Parameters = paramAndOpts.parameters,
                         Options = paramAndOpts.options,
                         HelpText = help,
                         IsTask = semanticModel.GetTypeInfo(method.ReturnType).Type?.Name == "Task",
                     };
-                if(defaultCommand is null && doc.Descendants("summary").FirstOrDefault()?.Attribute("default")?.Value == "true")
+                SetNameVariants(cmd, style, parentFullNameVariants);
+                foreach (var p in paramAndOpts.parameters)
+                    p.NameVariants = GetNameVariants(p.RawName, style);
+                foreach (var o in paramAndOpts.options)
+                    o.NameVariants = GetNameVariants(o.RawName, style);
+                bool hasDefaultAttr = method.AttributeLists
+                    .SelectMany(al => al.Attributes)
+                    .Any(a => a.Name.ToString() == "DefaultCommand" || a.Name.ToString() == "DefaultCommandAttribute");
+                if(defaultCommand is null && (hasDefaultAttr || doc.Descendants("summary").FirstOrDefault()?.Attribute("default")?.Value == "true"))
                 {
                     defaultCommand = cmd;
                 }
                 else
                 {
-                    cmds.Add(cmd);    
+                    cmds.Add(cmd);
                 }
-                
+
             }
             var classes = GetClasses(@class);
             foreach (var cl in classes)
             {
                 var doc = GetXmlDocumentation(cl);
                 var rawName = cl.Identifier.ToString().Trim();
-                var name = TransformName(rawName);
                 var h = doc.Descendants("summary").FirstOrDefault();
 				HelpText? help = null;
 				if(h is not null)
@@ -235,15 +281,17 @@ namespace CommandLineArgsGenerator
 				}
 				var cmd = new RootCommand
                 {
-                    Name = name,
-                    FullName = prevName is not null ? $"{prevName} {name}" : name,
                     HelpText = help,
-                    Children = GetCommands(cl, semanticModel, out CommandInfoBase? defCmd, name),
                     Class = cl,
                     RawName = rawName,
-                    Default = defCmd
                 };
-                if(defaultCommand is null && doc.Descendants("summary").FirstOrDefault()?.Attribute("default")?.Value == "true")
+                SetNameVariants(cmd, style, parentFullNameVariants);
+                cmd.Children = GetCommands(cl, semanticModel, out CommandInfoBase? defCmd, style, cmd.FullNameVariants);
+                cmd.Default = defCmd;
+                bool hasDefaultAttr = cl.AttributeLists
+                    .SelectMany(al => al.Attributes)
+                    .Any(a => a.Name.ToString() == "DefaultCommand" || a.Name.ToString() == "DefaultCommandAttribute");
+                if(defaultCommand is null && (hasDefaultAttr || doc.Descendants("summary").FirstOrDefault()?.Attribute("default")?.Value == "true"))
                 {
                     defaultCommand = cmd;
                 }
@@ -251,6 +299,11 @@ namespace CommandLineArgsGenerator
                 {
                     cmds.Add(cmd);
                 }
+            }
+            if (defaultCommand is null && cmds.Count == 1 && parentFullNameVariants == null)
+            {
+                defaultCommand = cmds[0];
+                cmds.Clear();
             }
             return cmds;
         }
@@ -325,11 +378,11 @@ namespace CommandLineArgsGenerator
                 return new ParameterInfo
                 {
                     RawName = name,
-                    Name = TransformName(name),
                     Type = type as INamedTypeSymbol,
                     HelpText = help,
                     DisplayTypeName = displayTypeName,
                     IsNullable = isNullable,
+                    Alias = p?.Attribute("alias")?.Value,
                 };
             }
             else if (type.TypeKind == TypeKind.Array)
@@ -338,7 +391,6 @@ namespace CommandLineArgsGenerator
                 return new OptionInfo
                 {
                     RawName = name,
-                    Name = TransformName(name),
                     Type = t,
                     HelpText = help,
                     DisplayTypeName = t?.ToDisplayString(typeFormat) ?? "FUCK?",
@@ -352,7 +404,6 @@ namespace CommandLineArgsGenerator
                 return new OptionInfo
                 {
                     RawName = name,
-                    Name = TransformName(name),
                     Type = type as INamedTypeSymbol,
                     HelpText = help,
                     DisplayTypeName = displayTypeName ?? "FUCK?",
@@ -380,30 +431,77 @@ namespace CommandLineArgsGenerator
             return (parameters, options);
 
         }
-        private string TransformName(string name)
+        private static string[] GetNameVariants(string name, NamingStyle styleFlags)
         {
-            if(name.All(char.IsUpper))
-                return name.ToLower();
-            var sb = new StringBuilder();
-            sb.Append(char.ToLower(name[0]));
-            foreach (var item in name.AsSpan(1))
+            bool shouldLowercase = styleFlags.HasFlag(NamingStyle.CaseInsensitive);
+            var cleaned = name.Replace("@", "");
+
+            // Find word boundary positions (where separators should be inserted)
+            var splitPositions = new List<int>();
+            if (!cleaned.All(char.IsUpper)) // all-upper means single word (e.g. "URL")
             {
-                if (char.IsUpper(item))
+                for (int i = 1; i < cleaned.Length; i++)
                 {
-                    sb.Append('-');
-                    sb.Append(char.ToLower(item));
-                }
-                else if(item is not '@')
-                {
-                    sb.Append(item);
+                    if (char.IsUpper(cleaned[i]))
+                        splitPositions.Add(i);
                 }
             }
-            return sb.ToString();
+
+            if (splitPositions.Count == 0)
+            {
+                // Single word — no separators possible
+                return new[] { shouldLowercase ? cleaned.ToLower() : cleaned };
+            }
+
+            var separators = new List<(NamingStyle flag, char? sep)>
+            {
+                (NamingStyle.KebabCase, '-'),
+                (NamingStyle.SnakeCase, '_'),
+                (NamingStyle.DotCase, '.'),
+                (NamingStyle.NoSeparator, null),
+            };
+
+            var variants = new List<string>();
+            foreach (var (flag, sep) in separators)
+            {
+                if (!styleFlags.HasFlag(flag))
+                    continue;
+                var sb = new StringBuilder();
+                int prev = 0;
+                foreach (var pos in splitPositions)
+                {
+                    if (sb.Length > 0 && sep.HasValue)
+                        sb.Append(sep.Value);
+                    sb.Append(cleaned, prev, pos - prev);
+                    prev = pos;
+                }
+                if (sb.Length > 0 && sep.HasValue)
+                    sb.Append(sep.Value);
+                sb.Append(cleaned, prev, cleaned.Length - prev);
+
+                var result = sb.ToString();
+                // Separated variants are always lowercase; NoSeparator is lowercase only when CaseInsensitive
+                if (sep.HasValue || shouldLowercase)
+                    result = result.ToLower();
+                variants.Add(result);
+            }
+
+            if (variants.Count == 0)
+                variants.Add(shouldLowercase ? cleaned.ToLower() : cleaned);
+
+            return variants.ToArray();
         }
 
         public void Initialize(GeneratorInitializationContext context)
-        { 
-            context.RegisterForSyntaxNotifications(() => new ParserSyntaxReceiver()); 
+        {
+            context.RegisterForPostInitialization(ctx =>
+            {
+                var asm = Assembly.GetExecutingAssembly();
+                using var stream = asm.GetManifestResourceStream("CommandLineArgsGenerator.StyleEnums.cs");
+                using var reader = new System.IO.StreamReader(stream);
+                ctx.AddSource("StyleEnums.g.cs", reader.ReadToEnd());
+            });
+            context.RegisterForSyntaxNotifications(() => new ParserSyntaxReceiver());
         }
     }
 }

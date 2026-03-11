@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.Collections.Generic;
 using System.Reflection;
 using System;
+using CommandLineArgsGenerator.Styles;
 
 namespace CommandLineArgsGenerator
 {
@@ -29,7 +30,40 @@ namespace CommandLineArgsGenerator
                     {
                         if (attr.Name.ToString() == "App" || attr.Name.ToString() == "AppAttribute")
                         {
-                            var root = new RootCommand { Class = cl, Name = null };
+                            var root = new RootCommand { Class = cl };
+                            if (attr.ArgumentList != null)
+                            {
+                                foreach (var arg in attr.ArgumentList.Arguments)
+                                {
+                                    if (arg.NameEquals != null)
+                                    {
+                                        var propName = arg.NameEquals.Name.ToString();
+                                        var constantValue = semanticModel.GetConstantValue(arg.Expression);
+                                        if (constantValue.HasValue && constantValue.Value is int value)
+                                        {
+                                            switch (propName)
+                                            {
+                                                case "ParamStyle": root.ParamStyle = (NamingStyle)value; break;
+                                                case "EnumStyle": root.EnumStyle = (NamingStyle)value; break;
+                                                case "ValueSeparator": root.ValueSeparator = (SeparatorStyle)value; break;
+                                                case "ArgPrefix": root.ArgPrefix = (PrefixStyle)value; break;
+                                                case "MandatoryStyle": root.MandatoryStyle = (MandatoryStyle)value; break;
+                                            }
+                                        }
+                                        else if (propName == "SkipCommandParsing" && constantValue.HasValue && constantValue.Value is bool boolVal)
+                                        {
+                                            root.SkipCommandParsing = boolVal;
+                                        }
+                                        else if (propName == "HelpCommand" && constantValue.HasValue)
+                                        {
+                                            if (constantValue.Value is string strVal)
+                                                root.HelpCommand = string.IsNullOrEmpty(strVal) ? null : strVal;
+                                            else if (constantValue.Value == null)
+                                                root.HelpCommand = null;
+                                        }
+                                    }
+                                }
+                            }
                             return root;
                         }
                     }

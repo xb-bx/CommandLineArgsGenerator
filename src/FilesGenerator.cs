@@ -12,7 +12,7 @@ namespace CommandLineArgsGenerator
 			var manifestNames = asm.GetManifestResourceNames();
             var csSources =
                 manifestNames
-                    .Where(name => name.EndsWith(".cs"));
+                    .Where(name => name.StartsWith("CommandLineArgsGenerator.templates.") && name.EndsWith(".cs"));
             var fileNames = 
                 csSources
                     .Select(name => name.Replace("CommandLineArgsGenerator.templates.", ""));

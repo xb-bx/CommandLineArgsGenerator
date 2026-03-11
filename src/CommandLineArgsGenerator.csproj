@@ -28,6 +28,9 @@
         <Compile Remove="templates\*.cs"/>
     </ItemGroup>
     <ItemGroup>
+        <EmbeddedResource Include="StyleEnums.cs" LogicalName="CommandLineArgsGenerator.StyleEnums.cs"/>
+    </ItemGroup>
+    <ItemGroup>
         <Content Include="build\*.*">
           <Pack>true</Pack>
           <PackagePath>build\</PackagePath>
@@ -45,6 +48,9 @@
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Scriban" Version="5.5.0" IncludeAssets="Build"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="build/CommandLineArgsGenerator.targets" Pack="True" PackagePath="build/CommandLineArgsGenerator.targets" />
     </ItemGroup>
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>

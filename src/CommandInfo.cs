@@ -13,27 +13,27 @@ namespace CommandLineArgsGenerator
         public override bool Equals(object obj)
         {
             return obj is CommandInfo info &&
-                   Name == info.Name;
+                   RawName == info.RawName;
         }
 
         public override int GetHashCode()
         {
-            return 539060726 + EqualityComparer<string>.Default.GetHashCode(Name);
+            return 539060726 + EqualityComparer<string>.Default.GetHashCode(RawName);
         }
         public override string ToString()
         {
             var sb = new StringBuilder();
-            sb.Append(Name);
+            sb.Append(RawName);
             foreach(var p in Parameters)
             {
                 sb.Append(" <");
-                sb.Append(p.Name);
+                sb.Append(p.RawName);
                 sb.Append("> ");
             }
             foreach (var p in Options)
             {
                 sb.Append(" -");
-                sb.Append(p.Name);
+                sb.Append(p.RawName);
             }
             return sb.ToString();
         }

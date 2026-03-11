@@ -1,5 +1,5 @@
 {{ convs = {} }}
-{{~ func ShortHelp(cmd) ~}}{{ cmd.Name }}{{ if cmd && cmd.HelpText && !cmd.HelpText.IsEmpty }} - { HelpTexts.{{ cmd.UnderscoredName }} }{{~ end ~}}{{~ end~}}
+{{~ func ShortHelp(cmd) ~}}{{ cmd.NameVariants[0] }}{{ if cmd && cmd.HelpText && !cmd.HelpText.IsEmpty }} - { HelpTexts.{{ cmd.UnderscoredName }} }{{~ end ~}}{{~ end~}}
 {{~
     func GetCmdHelp(command)
 ~}}
@@ -16,15 +16,20 @@
 		end
 	end
 ~}}
+{{~ func HelpCaseLabels(variants) ~}}
+{{~ for variant in variants ~}}
+            case "{{ variant }}":
+{{~ end ~}}
+{{~ end ~}}
 {{~ func Help(command)
         if command.Children
 ~}}
-            case "{{ command.FullName }}": 
+            {{~ HelpCaseLabels(command.FullNameVariants) ~}}
                 return HelpTexts.Full_{{command.UnderscoredName}};
             {{ for cmd in command.Children; Help(cmd); end }}
         {{ if command.Default; Help(command.Default); end }}
         {{~ else ~}}
-            case "{{ command.FullName }}":
+            {{~ HelpCaseLabels(command.FullNameVariants) ~}}
                 return HelpTexts.Full_{{command.UnderscoredName}};
         {{~ end ~}}
 
@@ -35,7 +40,7 @@
     end
  ~}}
 
-{{~ func GenerateConverter(param, valueToParse) ~}} 
+{{~ func ParamConverter(param, valueToParse) ~}}
     {{ if convs | object.has_key param.DisplayTypeName }}
         {{ param.RawName }} = {{ convs[param.DisplayTypeName]}}.Convert({{ valueToParse }});
     {{ else if param.IsString }}
@@ -52,135 +57,264 @@
     {{ else; Error("Cannot create convertor for "+ param.DisplayTypeName) }}
     {{ end }}
 {{~ end ~}}
-{{~ func GenerateOptionConverter(option) ~}}
-    {{ valueToParse = option.RawName + "Raw" }}
-    {{ if option.IsArray }}
-        {{ if convs | object.has_key option.DisplayTypeName }}
-            {{ option.RawName }} = {{ valueToParse }}.Select(o => {{ convs[option.DisplayTypeName]}}.Convert(o)).ToArray();
-        {{ else if option.IsString }}
-            {{ option.RawName }} = {{ valueToParse }}.ToArray();
-        {{ else if option.IsEnum }}
-            {{ option.RawName }} = {{ valueToParse }}.Select(o => EnumParser.Parse_{{option.UnderscoredTypeName}}(o)).ToArray();
-        {{ else if HasMethod(option, "Parse", 1)}}
-            {{ option.RawName }} = {{ valueToParse }}.Select(o => {{ option.DisplayTypeName}}.Parse(o)).ToArray();
-        {{ else if HasMethod(option, "TryParse", 2)}}
-            {{option.RawName}} = {{ valueToParse }}.Select(o => {
-                if(!{{ option.DisplayTypeName }}.TryParse(o, out var val))
-                    throw new Exception();
-                return val;
-            }).ToArray();
-        {{ else if HasCtor(option, ["string"])}}
-            {{ option.RawName }} = {{ valueToParse }}.Select(o => new {{ option.DisplayTypeName}}(o)).ToArray();
-        {{ else; Error("Cannot create convertor for "+ option.DisplayTypeName) }}
-        {{ end }}
-    {{ else }}
-        {{ GenerateConverter(option, option.RawName + "Raw") }}
+{{~ func ArrayConverter(item, valueToParse) ~}}
+    {{ if convs | object.has_key item.DisplayTypeName }}
+        {{ item.RawName }} = {{ valueToParse }}.Select(o => {{ convs[item.DisplayTypeName]}}.Convert(o)).ToArray();
+    {{ else if item.IsString }}
+        {{ item.RawName }} = {{ valueToParse }}.ToArray();
+    {{ else if item.IsEnum }}
+        {{ item.RawName }} = {{ valueToParse }}.Select(o => EnumParser.Parse_{{item.UnderscoredTypeName}}(o)).ToArray();
+    {{ else if HasMethod(item, "Parse", 1)}}
+        {{ item.RawName }} = {{ valueToParse }}.Select(o => {{ item.DisplayTypeName}}.Parse(o)).ToArray();
+    {{ else if HasMethod(item, "TryParse", 2)}}
+        {{item.RawName}} = {{ valueToParse }}.Select(o => {
+            if(!{{ item.DisplayTypeName }}.TryParse(o, out var val))
+                throw new Exception();
+            return val;
+        }).ToArray();
+    {{ else if HasCtor(item, ["string"])}}
+        {{ item.RawName }} = {{ valueToParse }}.Select(o => new {{ item.DisplayTypeName}}(o)).ToArray();
+    {{ else; Error("Cannot create convertor for "+ item.DisplayTypeName) }}
     {{ end }}
 {{~ end ~}}
+{{~ func GenerateConverter(item, valueToParse) ~}}
+    {{ if item.IsArray }}
+        {{ ArrayConverter(item, valueToParse) }}
+    {{ else }}
+        {{ ParamConverter(item, valueToParse) }}
+    {{ end }}
+{{~ end ~}}
+{{~ func ConvertWithErrorHandling(item, valueToParse, itemKind) ~}}
+    try
+    {
+        {{ GenerateConverter(item, valueToParse) }}
+    }
+    catch(ArgumentParsingException exception)
+    {
+        Error($"Cannot parse {{ itemKind }} {{item.NameVariants[0]}}\n{exception.Message}");
+    }
+    catch
+    {
+        Error($"Cannot parse {{ itemKind }} '{{item.NameVariants[0]}}', value '{ {{~ valueToParse ~}} }' is not convertible to {{item.DisplayTypeName}}");
+    }
+{{~ end ~}}
 
-{{~ func GenerateCase(command, isDefault = false) ~}}
+{{~ func GenerateCase(command, isDefault = false, siblings = null, parentHelpKey = null) ~}}
 
 {{~ if isDefault ~}}
 case string _{{ command.RawName }}:
 {{~ else ~}}
-case "{{ command.Name }}":
+{{ for variant in command.NameVariants }}
+case "{{ variant }}":
+{{ end }}
 {{~ end ~}}
 {
     {{ if isDefault }}
-    if(_{{ command.RawName }} == "{{ command.Name }}")
+    {{ if !SkipCommandParsing }}
+    if({{ for variant in command.NameVariants }}{{ if !for.first }} || {{ end }}_{{ command.RawName }} == "{{ variant }}"{{ end }})
     {
         segment = new ArraySegment<string>(args, segment.Offset+1, segment.Count - 1);
     }
+    {{ if GenerateSuggestions && siblings }}
+    else
+    {
+        var _possibleCmd_{{ command.RawName }} = FindClosest(_{{ command.RawName }},
+            new[] { {{ if HelpCommand }}"{{ HelpCommand }}", {{ end }}{{ for cmd in siblings; "\"" + cmd.NameVariants[0] + "\", "; end }} });
+        if (_possibleCmd_{{ command.RawName }} is not null)
+        {
+            Console.WriteLine(GetHelp({{ if parentHelpKey }}"{{ parentHelpKey }}"{{ end }}));
+            Console.WriteLine($"Did you mean '{_possibleCmd_{{ command.RawName }}}'?");
+            return;
+        }
+    }
+    {{ end }}
+    {{ end }}
     {{ else }}
     segment = new ArraySegment<string>(args, segment.Offset+1, segment.Count - 1);
     {{ end }}
-    if(segment.FirstOrDefault() == "--help")
+    {{ if HelpCommand }}
+    if({{ for prefix in OptionPrefixes }}{{ if !for.first }} || {{ end }}segment.FirstOrDefault() == "{{ prefix }}{{ HelpCommand }}"{{ end }})
     {
-        Console.WriteLine(GetHelp("{{ command.FullName }}"));
+        Console.WriteLine(GetHelp("{{ command.FullNameVariants[0] }}"));
         return;
     }
+    {{ end }}
     {{ if command.Children }}
+    {{~ GenerateSubcommandSwitch(command) ~}}
+    {{ else }}
+    {{~ GenerateLeafParsing(command, isDefault) ~}}
+    {{ end }}
+    break;
+}
+{{~ end ~}}
+{{~ func GenerateCaseLabels(item) ~}}
+    {{ if item.Alias }}
+    {{ for prefix in AliasPrefixes }}
+    case "{{ prefix }}{{ item.Alias }}":
+    {{ end }}
+    {{ end }}
+    {{ for variant in item.NameVariants }}
+    {{ for prefix in OptionPrefixes }}
+    case "{{ prefix }}{{ variant }}":
+    {{ end }}
+    {{ end }}
+{{~ end ~}}
+{{~ func HandleUnknown(errorKind, command, includeParamSuggestions) ~}}
+                    {{ if GenerateSuggestions }}
+                    {
+                        var posible_{{command.RawName}} = FindClosest(optName,
+                            new string[]{ {{ if includeParamSuggestions }}{{ for param in command.Parameters; for pfx in OptionPrefixes; "\"" + pfx + param.NameVariants[0] + "\", "; end; if param.Alias; for pfx in AliasPrefixes; "\"" + pfx + param.Alias + "\", "; end; end; end }}{{ end }}{{ for opt in command.Options; for pfx in OptionPrefixes; "\"" + pfx + opt.NameVariants[0] + "\", "; end; if opt.Alias; for pfx in AliasPrefixes; "\"" + pfx + opt.Alias + "\", "; end; end; end }} });
+
+                        if(posible_{{command.RawName}} is not null)
+                        {
+                            Console.WriteLine(GetHelp("{{command.FullNameVariants[0]}}"));
+                            Console.WriteLine($"Did you mean '{posible_{{command.RawName}}}'?");
+                            Environment.Exit(0);
+                        }
+                        else
+                        {
+                            Error($"{{ errorKind }} {optPart}");
+                        }
+                    }
+                    {{ else }}
+                    Error($"{{ errorKind }} {optPart}");
+                    {{ end }}
+{{~ end ~}}
+{{~ func GenerateSubcommandSwitch(command) ~}}
     if(segment.Count < 1)
     {
-        Console.WriteLine(GetHelp("{{ command.FullName }}"));
+        Console.WriteLine(GetHelp("{{ command.FullNameVariants[0] }}"));
         return;
     }
-    switch(segment[0])
+    switch(segment[0]{{ if ParamCaseInsensitive }}.ToLower(){{ end }})
     {
         {{ for cmd in command.Children; GenerateCase(cmd); end }}
         {{~
         if command.Default
-            GenerateCase(command.Default, true)
+            GenerateCase(command.Default, true, command.Children, command.FullNameVariants[0])
         else
         ~}}
         case string {{ command.RawName}}_unknown:
             {{ if GenerateSuggestions }}
-            var posible_{{command.RawName}} = 
-                new[] { {{ for cmd in command.Children; "\"" + cmd.Name + "\", "; end }} }
-                .Select(cmd => (cmd, LevenshteinDistance.Calculate(cmd, {{ command.RawName }}_unknown )))
-                .OrderBy(x => x.Item2)
-                .ThenBy(x => x.Item1)
-                .FirstOrDefault(x => x.Item2 <= 2);
-            if(posible_{{command.RawName}}.Item1 is not null) 
+            var posible_{{command.RawName}} = FindClosest({{ command.RawName }}_unknown,
+                new[] { {{ for cmd in command.Children; "\"" + cmd.NameVariants[0] + "\", "; end }} });
+            if(posible_{{command.RawName}} is not null)
             {
-                Console.WriteLine(GetHelp("{{ command.FullName }}"));
-                Console.WriteLine($"Did you mean '{posible_{{command.RawName}}.Item1}'?");
+                Console.WriteLine(GetHelp("{{ command.FullNameVariants[0] }}"));
+                Console.WriteLine($"Did you mean '{posible_{{command.RawName}}}'?");
             }
             {{ else }}
-            Console.WriteLine(GetHelp("{{ command.FullName }}"));
-            Error("Unknown command");
+            Console.WriteLine(GetHelp("{{ command.FullNameVariants[0] }}"));
+            Error($"Unknown command '{ {{~ command.RawName ~}}_unknown}'");
             {{ end }}
             break;
         {{~ end ~}}
     }
-    {{ else }}
-    if(segment.Count < {{ command.Parameters | array.size }})
-    {
-       Error("Not all parameters are specified");
-    }
-    {{ if (command.Parameters | array.size) > 0 }}
+{{~ end ~}}
+{{~ func GenerateLeafParsing(command, isDefault) ~}}
+    {{~ paramCount = command.Parameters | array.size ~}}
+    {{~ optionCount = command.Options | array.size ~}}
+    {{ if paramCount > 0 }}
         {{ for parameter in command.Parameters }}
             {{ parameter.DisplayTypeName }}{{ parameter.IsNullable ? "?" : ""}} {{ parameter.RawName }} = default;
-            try
-            {
-                {{GenerateConverter(parameter, "segment[" + (for.index) + "]") }}
-            }
-            catch(ArgumentParsingException exception)
-            {
-                Error($"Cannot parse parameter {{parameter.Name}}\n{exception.Message}");
-            }
-            catch
-            {
-                Error("Cannot parse parameter {{parameter.Name}}");
-            }
+            bool {{ parameter.RawName }}_set = false;
         {{ end }}
     {{ end }}
-    {{ if (command.Options | array.size) > 0 }}
+    {{ if optionCount > 0 }}
         {{ for option in command.Options }}
             {{ option.IsArray ? "Queue<string>" : "string" }} {{ option.RawName }}Raw = null;
         {{ end }}
-        for(int i = {{ command.Parameters | array.size }}; i < segment.Count;)
+    {{ end }}
+    {{ if isDefault && paramCount == 0 && optionCount == 0 }}
+    if(segment.Count > 0)
+    {
+        Error($"Unexpected argument '{segment[0]}'");
+    }
+    {{ end }}
+    {{ if paramCount > 0 || optionCount > 0 }}
+    {
+        {{ if MandatoryPositional && paramCount > 0 }}
+        int _positionalIndex = 0;
+        {{ end }}
+        for(int i = 0; i < segment.Count;)
         {
-            switch(segment[i++])
+            var optPart = segment[i];
+            {{ if SeparatorColon || SeparatorEquals }}
+            string optName, optInlineValue = null;
+            var sepIdx = optPart.IndexOfAny(new[] { {{ if SeparatorColon }}':', {{ end }}{{ if SeparatorEquals }}'=' {{ end }} });
+            if(sepIdx >= 0) { optName = optPart.Substring(0, sepIdx); optInlineValue = optPart.Substring(sepIdx + 1); }
+            else { optName = optPart; }
+            i++;
+            {{ else }}
+            var optName = optPart;
+            i++;
+            {{ end }}
+            switch(optName{{ if ParamCaseInsensitive }}.ToLower(){{ end }})
             {
-                {{ for option in command.Options }}
-                {{ if option.Alias }}
-                case "-{{ option.Alias }}":
+                {{ if MandatoryNamed }}
+                {{ for parameter in command.Parameters }}
+                {{~ GenerateCaseLabels(parameter) ~}}
+                {
+                    string _val;
+                    {{ if SeparatorColon || SeparatorEquals }}
+                    if(optInlineValue != null) { _val = optInlineValue; }
+                    else
+                    {
+                    {{ end }}
+                        if(i >= segment.Count) { Error("Missing value for parameter '{{ parameter.NameVariants[0] }}'"); _val = null; }
+                        else { _val = segment[i++]; }
+                    {{ if SeparatorColon || SeparatorEquals }}
+                    }
+                    {{ end }}
+                    {{ ConvertWithErrorHandling(parameter, "_val", "parameter") }}
+                    {{ parameter.RawName }}_set = true;
+                }
+                break;
                 {{ end }}
-                case "--{{option.Name}}":
+                {{ end }}
+                {{ for option in command.Options }}
+                {{~ GenerateCaseLabels(option) ~}}
                     {{ if !option.IsBool }}
+                    {{ if SeparatorColon || SeparatorEquals }}
+                    if(optInlineValue != null)
+                    {
+                        {{ if option.IsArray }}
+                        {{ option.RawName}}Raw = new Queue<string>();
+                        {{ option.RawName}}Raw.Enqueue(optInlineValue);
+                        {{ else }}
+                        {{ option.RawName }}Raw = optInlineValue;
+                        {{ end }}
+                    }
+                    else
+                    {
+                    {{ end }}
                     if(i >= segment.Count)
                     {
-                        Error("Specify option value!");
+                        Error($"Specify value for option '{optName}'");
                     }
                     {{ end }}
                     {{ if option.IsArray }}
+                    {{ if SeparatorColon || SeparatorEquals }}
+                    if(optInlineValue == null)
+                    {
+                    {{ end }}
                     {{ option.RawName}}Raw = new Queue<string>();
                     while(i < segment.Count && !segment[i].StartsWith('-'))
                     {
                         {{ option.RawName}}Raw.Enqueue(segment[i++]);
                     }
+                    {{ if SeparatorColon || SeparatorEquals }}
+                    }
+                    {{ end }}
                     {{ else if option.IsBool }}
+                    {{ if SeparatorColon || SeparatorEquals }}
+                    if(optInlineValue != null)
+                    {
+                        {{ option.RawName }}Raw = optInlineValue;
+                    }
+                    else
+                    {
+                    {{ end }}
                     if(i < segment.Count && (segment[i].ToLower() == "true" || segment[i].ToLower() == "false"))
                     {
                         {{ option.RawName }}Raw = segment[i++];
@@ -193,61 +327,70 @@ case "{{ command.Name }}":
                         {{ option.RawName }}Raw = "true";
                         {{ end }}
                     }
+                    {{ if SeparatorColon || SeparatorEquals }}
+                    }
+                    {{ end }}
                     {{ else }}
+                        {{ if SeparatorColon || SeparatorEquals }}
+                        if(optInlineValue == null)
+                        {
+                        {{ end }}
                         {{ option.RawName }}Raw = segment[i++];
+                        {{ if SeparatorColon || SeparatorEquals }}
+                        }
+                        {{ end }}
+                    {{ end }}
+                    {{ if SeparatorColon || SeparatorEquals }}
+                    {{ if !option.IsBool }}
+                    }
+                    {{ end }}
                     {{ end }}
                 break;
                 {{ end }}
-                case string opt:
-                    {{ if GenerateSuggestions }}
+                default:
+                {{ if MandatoryPositional && paramCount > 0 }}
+                {
+                    switch(_positionalIndex++)
                     {
-                        var posible_{{command.RawName}} = 
-                            new string[]{ {{ for opt in command.Options; "\"--" + opt.Name + "\", "; if opt.Alias; "\"-" + opt.Alias + "\", "; end; end }} }
-                            .Select(cmd => (cmd, LevenshteinDistance.Calculate(cmd, opt)))
-                            .OrderBy(x => x.Item2)
-                            .ThenBy(x => x.Item1)
-                            .FirstOrDefault(x => x.Item2 <= 2);
-                            
-                        if(posible_{{command.RawName}}.Item1 is not null) 
-                        {
-                            Console.WriteLine(GetHelp("{{command.FullName}}"));
-                            Console.WriteLine($"Did you mean '{posible_{{command.RawName}}.Item1}'?");
-                            Environment.Exit(0);
-                        }
-                        else 
-                        {
-                            Error($"Unknown option {opt}");
-                        }
+                        {{ for parameter in command.Parameters }}
+                        case {{ for.index }}:
+                            {{ ConvertWithErrorHandling(parameter, "optPart", "parameter") }}
+                            {{ parameter.RawName }}_set = true;
+                            break;
+                        {{ end }}
+                        default:
+                            {{ HandleUnknown("Unexpected argument", command, true) }}
+                            break;
                     }
-                    {{ else }}
-                    Error($"Unknown option {opt}");
-                    {{ end }}
+                }
+                {{ else if paramCount > 0 }}
+                    {{ HandleUnknown("Unexpected argument", command, true) }}
+                {{ else }}
+                    {{ HandleUnknown("Unknown option", command, false) }}
+                {{ end }}
                     break;
             }
         }
+    }
+    {{ end }}
+    {{ if paramCount > 0 }}
+        {{ for parameter in command.Parameters }}
+        if(!{{ parameter.RawName }}_set)
+        {
+            Error("Missing required parameter '{{ parameter.NameVariants[0] }}'");
+        }
+        {{ end }}
+    {{ end }}
+    {{ if optionCount > 0 }}
         {{ for option in command.Options }}
             {{ option.DisplayTypeName }}{{option.IsArray ? "[]": ""}}{{option.IsNullable ? "?": ""}} {{ option.RawName}} = {{ option.Default ?? "default" }};
-            try
+            if({{option.RawName}}Raw != null)
             {
-                if({{option.RawName}}Raw != null)
-                {
-                    {{ GenerateOptionConverter(option) }}
-                }
-            }
-            catch(ArgumentParsingException exception)
-            {
-                Error($"Cannot parse option {{option.Name}}\n{exception.Message}");
-            }
-            catch
-            {
-                Error("Cannot parse option {{option.Name}}");
+                {{ ConvertWithErrorHandling(option, option.RawName + "Raw", "option") }}
             }
         {{ end }}
     {{ end }}
     {{ command.NameInSourceCode }}({{ JoinParamsAndOptions(command) }}){{~ if command.IsTask ~}}.GetAwaiter().GetResult(){{ end }};
-    {{ end }}
-    break;
-}
 {{~ end ~}}
 #nullable disable
 using System;
@@ -265,9 +408,19 @@ namespace {{ Namespace }}
                 {{ if Root.Default; Help(Root.Default); end }}
                 {{~ $cmdChars = (Root.Default != null) ? ['[', ']'] : [ '<', '>' ]~}}
                 default:
-                    return $"{{~ if Root.HelpText ~}}{ HelpTexts.Root }\n{{~ end ~}}Usage: {{$cmdChars[0]}}command{{$cmdChars[1]}} <parameters> [options]\ncommands:\n\thelp - shows help text of command\n{{~if Root.Default ~}}\t(default){{~ ShortHelp(Root.Default) ~}}\n{{~ end ~}}{{~for cmd in Root.Children~}}\t{{ShortHelp(cmd)}}\n{{~ end ~}}";
+                    return $"{{~ if Root.HelpText ~}}{ HelpTexts.Root }\n{{~ end ~}}Usage: {{$cmdChars[0]}}command{{$cmdChars[1]}} <parameters> [options]\ncommands:\n{{~ if HelpCommand ~}}\t{{ HelpCommand }} - shows help text of command\n{{~ end ~}}{{~if Root.Default ~}}\t(default){{~ ShortHelp(Root.Default) ~}}\n{{~ end ~}}{{~for cmd in Root.Children~}}\t{{ShortHelp(cmd)}}\n{{~ end ~}}";
             }
 		}
+		{{ if GenerateSuggestions }}
+		private static string FindClosest(string input, string[] candidates, int maxDistance = 2)
+		{
+			return candidates
+				.Select(c => (c, LevenshteinDistance.Calculate(c, input)))
+				.OrderBy(x => x.Item2)
+				.ThenBy(x => x.Item1)
+				.FirstOrDefault(x => x.Item2 <= maxDistance).Item1;
+		}
+		{{ end }}
 		private static void Error(string error)
 		{
 			Console.ForegroundColor = ConsoleColor.Red;
@@ -301,9 +454,13 @@ namespace {{ Namespace }}
                     {{ convs[targetType] = convName }}
                 {{ end }}
             {{ end }}
-            switch(segment[0])
+            switch(segment[0]{{ if ParamCaseInsensitive }}.ToLower(){{ end }})
             {
-                case "help":
+                {{ if HelpCommand }}
+                case "{{ HelpCommand }}":
+                {{ for prefix in OptionPrefixes }}
+                case "{{ prefix }}{{ HelpCommand }}":
+                {{ end }}
                     if(args.Length == 1)
                     {
                         Console.WriteLine(GetHelp());
@@ -313,6 +470,7 @@ namespace {{ Namespace }}
                         Console.WriteLine(GetHelp(string.Join(" ", args.Skip(1))));
                     }
                     break;
+                {{ end }}
                 {{~ if GenerateCompletion }}
                 case "complete":
                 {
@@ -337,7 +495,7 @@ namespace {{ Namespace }}
 						pos -= spl[0].Length + 1;
 						segment = new ArraySegment<string>(spl, 1, spl.Length - 1);
                     }
-					else 
+					else
 					{
 						segment = new ArraySegment<string>(segment.Array, segment.Offset + 3, segment.Count - 3);
 					}
@@ -346,31 +504,27 @@ namespace {{ Namespace }}
                 }
                 {{~ end ~}}
                 {{ for cmd in Root.Children; GenerateCase(cmd); end }}
-                {{ if Root.Default; GenerateCase(Root.Default, true); }}
+                {{ if Root.Default; GenerateCase(Root.Default, true, Root.Children, null); }}
                 {{else}}
-                case string unknowncmd: 
+                case string unknowncmd:
                 {{ if GenerateSuggestions }}
                 {
-                    var posible = 
-                        new[] { "help", {{ for cmd in Root.Children; "\"" + cmd.Name + "\", "; end }} }
-                        .Select(cmd => (cmd, LevenshteinDistance.Calculate(cmd, unknowncmd)))
-                        .OrderBy(x => x.Item2)
-                        .ThenBy(x => x.Item1)
-                        .FirstOrDefault(x => x.Item2 <= 2);
-                    if(posible.Item1 is not null) 
+                    var posible = FindClosest(unknowncmd,
+                        new[] { {{ if HelpCommand }}"{{ HelpCommand }}", {{ end }}{{ for cmd in Root.Children; "\"" + cmd.NameVariants[0] + "\", "; end }} });
+                    if(posible is not null)
                     {
                         Console.WriteLine(GetHelp());
-                        Console.WriteLine($"Did you mean '{posible.Item1}'?");
-                    } 
-                    else 
-                    {                                
+                        Console.WriteLine($"Did you mean '{posible}'?");
+                    }
+                    else
+                    {
                         Console.WriteLine(GetHelp());
-                        Error("Unknown command");
+                        Error($"Unknown command '{unknowncmd}'");
                     }
                 }
                 {{ else }}
                 Console.WriteLine(GetHelp());
-                Error("Unknown command");
+                Error($"Unknown command '{unknowncmd}'");
                 {{ end }}
                 break;
                 {{ end }}

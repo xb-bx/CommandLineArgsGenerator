@@ -7,10 +7,11 @@ namespace CommandLineArgsGenerator
 {
     public class ParameterInfo
     {
-        public string Name { get; set; }
+        public string[] NameVariants { get; set; }
         public string RawName { get; set; }
         public INamedTypeSymbol Type { get; set; }
-        public HelpText? HelpText { get; set; } 
+        public string? Alias { get; set; }
+        public HelpText? HelpText { get; set; }
         public bool IsNullable { get; set; }
         
         private string displayTypeName;
@@ -27,6 +28,7 @@ namespace CommandLineArgsGenerator
             } 
         }
         public string UnderscoredTypeName { get; set; }
+		public virtual bool IsArray { get; set; }
 		public bool IsString => Type?.SpecialType == SpecialType.System_String;
 		public bool IsEnum => Type?.BaseType?.SpecialType == SpecialType.System_Enum;
 
